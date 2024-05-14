@@ -46,6 +46,10 @@ void cond_wait(struct condition *, struct lock *);
 void cond_signal(struct condition *, struct lock *);
 void cond_broadcast(struct condition *, struct lock *);
 
+/* 최적화 바리어입니다.
+ *
+ * 컴파일러는 최적화 바리어를 통해 연산을 재배열하지 않습니다.
+ * 자세한 내용은 참조 가이드의 "최적화 바리어"를 참조하세요. */
 /* Optimization barrier.
  *
  * The compiler will not reorder operations across an

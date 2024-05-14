@@ -1,5 +1,7 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
+#define USERPROG    // project2 잠금 해제
+// #define VM          // project3 잠금 해제
 
 #include <debug.h>
 #include <list.h>
@@ -11,6 +13,7 @@
 #include "vm/vm.h"
 #endif
 
+/* 스레드의 생명 주기에 있는 상태들입니다. */
 /* States in a thread's life cycle. */
 enum thread_status {
     THREAD_RUNNING, /* Running thread. */
@@ -19,37 +22,57 @@ enum thread_status {
     THREAD_DYING    /* About to be destroyed. */
 };
 
+/* 스레드 식별자 타입. 원하는 타입으로 재정의 가능합니다. */
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
 #define TID_ERROR ((tid_t) - 1) /* Error value for tid_t. */
 
 /* Thread priorities. */
-/* input: pintos -v -k -T 300  -m 20   --fs-disk=10 -p tests/userprog/no-vm/multi-oom:multi-oom -- -q   -f run multi-oom < /dev/null 2> tests/userprog/no-vm/multi-oom.errors >
- * tests/userprog/no-vm/multi-oom.output*/
-/* page, limit =
-                 P(1, 48): OOM Success but *Exception: 1628 page faults
-                 P(1, 64): OOM Success but *Exception: 1870 page faults
-                 P(2, 32): OOM Success but *Exception: 1628 page faults
-                 P(3, 16): OOM Success but *Exception: 198 page faults
-                 P(3, 48): OOM Success but *Exception: 1518 page faults
-                 P(48, 3): OOM Success but *Exception: 264 page faults
-                 P(60, 3): OOM Success but *Exception: 198 page faults
-                 P(100,3)
-
-                 P(600,4, m=200MB)
-
-                 F(1, 128): child_210_X: exit(-1) //TIMEOUT
-                 F(4, 8)
-                 F(100,1): child_0_O: exit(1) //!spawned at least 10 children
-                 F(600,4, m=120MB): //!spawned at least 10 children */
-
 #define PRI_MIN 0      /* Lowest priority. */
 #define PRI_DEFAULT 31 /* Default priority. */
 #define PRI_MAX 63     /* Highest priority. */
 #define FDT_PAGES 3    
-#define FDT_COUNT_LIMIT 16
+#define FDT_COUNT_LIMIT (1<<9)
 
+/* 커널 스레드 또는 유저 프로세스의 구조체입니다.
+ *
+ * 각 스레드 구조체는 자신의 4 kB 페이지에 저장됩니다. 스레드 구조체 자체는
+ * 페이지의 맨 아래(오프셋 0)에 위치합니다. 페이지의 나머지 부분은
+ * 스레드의 커널 스택을 위해 예약되어 있으며, 이는 페이지의 상단(오프셋 4 kB)에서
+ * 아래 방향으로 성장합니다. 다음은 이를 도식화한 것입니다:
+ *
+ *      4 kB +---------------------------------+
+ *           |          커널 스택               |
+ *           |                |                |
+ *           |                |                |
+ *           |                V                |
+ *           |         아래 방향으로 성장       |
+ *           |                                 |
+ *           +---------------------------------+
+ *           |              magic              |
+ *           |            intr_frame           |
+ *           |                :                |
+ *           |                :                |
+ *           |               이름              |
+ *           |              상태               |
+ *      0 kB +---------------------------------+
+ *
+ * 이 구조는 두 가지 중요한 점을 시사합니다:
+ *
+ *    1. `struct thread`는 너무 커져서는 안 됩니다. 크기가 커지면
+ *       커널 스택에 충분한 공간이 없게 됩니다. 기본 `struct thread`는
+ *       몇 바이트 크기에 불과하며, 1 kB 미만으로 유지되어야 합니다.
+ *
+ *    2. 커널 스택은 너무 커져서도 안 됩니다. 스택 오버플로우가 발생하면
+ *       스레드 상태가 손상될 수 있습니다. 따라서, 커널 함수는 큰 구조체나
+ *       배열을 비정적 로컬 변수로 할당해서는 안 됩니다. 대신 malloc()이나
+ *       palloc_get_page()를 사용하여 동적 할당을 수행하세요.
+ *
+ * 이러한 문제들의 첫 번째 증상은 아마도 thread_current()에서의
+ * 단언 실패일 것입니다. 이 함수는 실행 중인 스레드의 `struct thread`의
+ * `magic` 멤버가 THREAD_MAGIC으로 설정되어 있는지를 확인합니다.
+ * 스택 오버플로우는 보통 이 값을 변경하여 단언을 유발합니다. */
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -101,6 +124,12 @@ typedef int tid_t;
  * the `magic' member of the running thread's `struct thread' is
  * set to THREAD_MAGIC.  Stack overflow will normally change this
  * value, triggering the assertion. */
+
+/* 이 두 가지 사용 방법이 가능한 이유는, 각 상태가 서로 배타적이기 때문입니다.
+	 준비 상태(ready state)에 있는 스레드만 실행 대기열에 있을 수 있고, 
+	 차단된 상태(blocked state)에 있는 스레드만 세마포어 대기 목록에 있을 수 있습니다. 
+	 이를 통해 elem 멤버는 효율적으로 두 가지 목적으로 사용될 수 있으며, 
+	 각 상황에 따라 적절하게 스레드를 관리하는 데 필요한 구조적 지원을 제공합니다.*/
 /* The `elem' member has a dual purpose.  It can be an element in
  * the run queue (thread.c), or it can be an element in a
  * semaphore wait list (synch.c).  It can be used these two ways
@@ -126,6 +155,7 @@ struct thread {
     uint64_t *pml4; /* Page map level 4 */
 #endif
 #ifdef VM
+    /* 스레드가 소유한 전체 가상 메모리에 대한 테이블. */
     /* Table for whole virtual memory owned by thread. */
     struct supplemental_page_table spt;
 #endif
