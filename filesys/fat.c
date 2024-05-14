@@ -6,16 +6,18 @@
 #include <stdio.h>
 #include <string.h>
 
+/* DISK_SECTOR_SIZE보다 작아야 합니다. */
 /* Should be less than DISK_SECTOR_SIZE */
 struct fat_boot {
 	unsigned int magic;
-	unsigned int sectors_per_cluster; /* Fixed to 1 */
+	unsigned int sectors_per_cluster; /* 1로 고정됨 / Fixed to 1 */
 	unsigned int total_sectors;
 	unsigned int fat_start;
-	unsigned int fat_sectors; /* Size of FAT in sectors. */
+	unsigned int fat_sectors; /* 섹터 단위의 FAT 크기 / Size of FAT in sectors. */
 	unsigned int root_dir_cluster;
 };
 
+/* FAT 파일 시스템 */
 /* FAT FS */
 struct fat_fs {
 	struct fat_boot bs;
@@ -159,6 +161,9 @@ fat_fs_init (void) {
 /* FAT handling                                                               */
 /*----------------------------------------------------------------------------*/
 
+/* 체인에 클러스터 추가.
+ * CLST가 0이면 새 체인 시작.
+ * 새 클러스터를 할당하지 못하면 0을 반환. */
 /* Add a cluster to the chain.
  * If CLST is 0, start a new chain.
  * Returns 0 if fails to allocate a new cluster. */
@@ -167,6 +172,8 @@ fat_create_chain (cluster_t clst) {
 	/* TODO: Your code goes here. */
 }
 
+/* CLST부터 시작하는 클러스터 체인 제거.
+ * PCLST가 0이면 CLST를 체인의 시작으로 가정. */
 /* Remove the chain of clusters starting from CLST.
  * If PCLST is 0, assume CLST as the start of the chain. */
 void
@@ -174,18 +181,21 @@ fat_remove_chain (cluster_t clst, cluster_t pclst) {
 	/* TODO: Your code goes here. */
 }
 
+/* FAT 테이블에서 값을 업데이트. */
 /* Update a value in the FAT table. */
 void
 fat_put (cluster_t clst, cluster_t val) {
 	/* TODO: Your code goes here. */
 }
 
+/* FAT 테이블에서 값 가져오기 */
 /* Fetch a value in the FAT table. */
 cluster_t
 fat_get (cluster_t clst) {
 	/* TODO: Your code goes here. */
 }
 
+/* 클러스터 번호를 섹터 번호로 변환하기 */
 /* Covert a cluster # to a sector number. */
 disk_sector_t
 cluster_to_sector (cluster_t clst) {

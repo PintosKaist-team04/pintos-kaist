@@ -8,11 +8,15 @@
 #include "filesys/directory.h"
 #include "devices/disk.h"
 
+
+/* 파일 시스템을 포함하는 디스크. */
 /* The disk that contains the file system. */
 struct disk *filesys_disk;
 
 static void do_format (void);
 
+/* 파일 시스템 모듈을 초기화합니다.
+ * FORMAT이 true이면 파일 시스템을 다시 포맷합니다. */
 /* Initializes the file system module.
  * If FORMAT is true, reformats the file system. */
 void
@@ -31,6 +35,7 @@ filesys_init (bool format) {
 
 	fat_open ();
 #else
+	/* 원래 파일 시스템 */
 	/* Original FS */
 	free_map_init ();
 
@@ -41,10 +46,12 @@ filesys_init (bool format) {
 #endif
 }
 
+/* 파일 시스템 모듈을 종료하고, 기록되지 않은 데이터를 디스크에 씁니다. */
 /* Shuts down the file system module, writing any unwritten data
  * to disk. */
 void
 filesys_done (void) {
+	/* 원래 파일 시스템 */
 	/* Original FS */
 #ifdef EFILESYS
 	fat_close ();
@@ -53,6 +60,9 @@ filesys_done (void) {
 #endif
 }
 
+/* 주어진 INITIAL_SIZE로 NAME이라는 파일을 생성합니다.
+ * 성공하면 true를 반환하고, 그렇지 않으면 false를 반환합니다.
+ * NAME이라는 파일이 이미 존재하거나 내부 메모리 할당에 실패하면 실패합니다. */
 /* Creates a file named NAME with the given INITIAL_SIZE.
  * Returns true if successful, false otherwise.
  * Fails if a file named NAME already exists,
@@ -72,6 +82,9 @@ filesys_create (const char *name, off_t initial_size) {
 	return success;
 }
 
+/* 주어진 NAME의 파일을 엽니다.
+ * 성공하면 새 파일을 반환하고, 그렇지 않으면 null 포인터를 반환합니다.
+ * NAME이라는 파일이 존재하지 않거나 내부 메모리 할당에 실패하면 실패합니다. */
 /* Opens the file with the given NAME.
  * Returns the new file if successful or a null pointer
  * otherwise.
@@ -89,6 +102,9 @@ filesys_open (const char *name) {
 	return file_open (inode);
 }
 
+/* NAME이라는 파일을 삭제합니다.
+ * 성공하면 true를 반환하고, 실패하면 false를 반환합니다.
+ * NAME이라는 파일이 존재하지 않거나 내부 메모리 할당에 실패하면 실패합니다. */
 /* Deletes the file named NAME.
  * Returns true if successful, false on failure.
  * Fails if no file named NAME exists,
@@ -102,12 +118,14 @@ filesys_remove (const char *name) {
 	return success;
 }
 
+/* 파일 시스템을 포맷합니다. */
 /* Formats the file system. */
 static void
 do_format (void) {
 	printf ("Formatting file system...");
 
 #ifdef EFILESYS
+	/* FAT을 생성하고 디스크에 저장합니다. */
 	/* Create FAT and save it to the disk. */
 	fat_create ();
 	fat_close ();
