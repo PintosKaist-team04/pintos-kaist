@@ -10,8 +10,8 @@ int process_wait(tid_t);
 void process_exit(void);
 void process_activate(struct thread *next);
 void argument_stack(char **parse, int count, void **rsp);
-struct thread *get_child_process(int pid);
-int process_add_file(struct file *f);
-struct file* process_get_file(int fd);
+static struct thread *get_child_process(int pid);
+static int process_add_file(struct file *f);
+static struct file* process_get_file(int fd);
 
 #endif /* userprog/process.h */
