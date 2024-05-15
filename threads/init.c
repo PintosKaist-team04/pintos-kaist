@@ -38,17 +38,19 @@
 #include "filesys/fsutil.h"
 #endif
 
+/* 커널 매핑만을 포함하는 페이지 맵 레벨 4 */
 /* Page-map-level-4 with kernel mappings only. */
 uint64_t *base_pml4;
 
 #ifdef FILESYS
+/* -f: 파일 시스템을 포맷할 것인가? */
 /* -f: Format the file system? */
 static bool format_filesys;
 #endif
-
+/* -q: 커널 작업이 완료된 후 시스템을 종료할 것인가? */
 /* -q: Power off after kernel tasks complete? */
 bool power_off_when_done;
-
+/* 스레드 테스트를 진행할 것인지의 여부 */
 bool thread_tests;
 
 static void bss_init (void);
@@ -64,34 +66,40 @@ static void print_stats (void);
 
 int main (void) NO_RETURN;
 
+/* 핀토스 메인 프로그램 */
 /* Pintos main program. */
 int
 main (void) {
 	uint64_t mem_end;
 	char **argv;
 
+	/* BSS 세그먼트를 초기화하고 시스템 RAM 크기를 가져옵니다. */
 	/* Clear BSS and get machine's RAM size. */
 	bss_init ();
 
+	/* 커맨드 라인을 인수로 분리하고 옵션을 파싱합니다. */
 	/* Break command line into arguments and parse options. */
 	argv = read_command_line ();
 	argv = parse_options (argv);
 
+	/* 스레드로서 자신을 초기화하여 락을 사용할 수 있게 하고,
+       콘솔 락을 활성화합니다. */
 	/* Initialize ourselves as a thread so we can use locks,
 	   then enable console locking. */
 	thread_init ();
 	console_init ();
 
+	/* 메모리 시스템을 초기화합니다. */
 	/* Initialize memory system. */
-	mem_end = palloc_init ();
-	malloc_init ();
+	mem_end = palloc_init ();					// 메모리 크기 결정
+	malloc_init ();	
 	paging_init (mem_end);
 
 #ifdef USERPROG
 	tss_init ();
 	gdt_init ();
 #endif
-
+	/* 인터럽트 핸들러를 초기화합니다. */
 	/* Initialize interrupt handlers. */
 	intr_init ();
 	timer_init ();
@@ -101,12 +109,14 @@ main (void) {
 	exception_init ();
 	syscall_init ();
 #endif
+	/* 스레드 스케줄러를 시작하고 인터럽트를 활성화합니다. */
 	/* Start thread scheduler and enable interrupts. */
 	thread_start ();
 	serial_init_queue ();
 	timer_calibrate ();
 
 #ifdef FILESYS
+	/* 파일 시스템을 초기화합니다. */
 	/* Initialize file system. */
 	disk_init ();
 	filesys_init (format_filesys);
@@ -118,18 +128,27 @@ main (void) {
 
 	printf ("Boot complete.\n");
 
+	/* 커널 커맨드 라인에 지정된 작업을 실행합니다. */
 	/* Run actions specified on kernel command line. */
 	run_actions (argv);
 
+	/* 마무리 작업을 수행합니다. */
 	/* Finish up. */
 	if (power_off_when_done)
 		power_off ();
 	thread_exit ();
 }
 
+/* BSS 영역 초기화 */
 /* Clear BSS */
 static void
 bss_init (void) {
+	/* "BSS"는 0으로 초기화되어야 하는 세그먼트입니다.
+		이 영역은 디스크에 저장되지 않고 커널 로더에 의해 0으로 초기화되지도 않습니다,
+		그래서 우리가 직접 0으로 초기화해야 합니다.
+
+		BSS 세그먼트의 시작과 끝은 링커에 의해 _start_bss와 _end_bss로 기록됩니다.
+		kernel.lds를 참고하세요. */
 	/* The "BSS" is a segment that should be initialized to zeros.
 	   It isn't actually stored on disk or zeroed by the kernel
 	   loader, so we have to zero it ourselves.
@@ -140,6 +159,9 @@ bss_init (void) {
 	memset (&_start_bss, 0, &_end_bss - &_start_bss);
 }
 
+/* 페이지 테이블을 채워 커널 가상 매핑을 설정하고,
+ * 새 페이지 디렉토리를 사용하도록 CPU를 설정합니다.
+ * base_pml4는 생성된 pml4를 가리킵니다. */
 /* Populates the page table with the kernel virtual mapping,
  * and then sets up the CPU to use the new page directory.
  * Points base_pml4 to the pml4 it creates. */
@@ -150,6 +172,8 @@ paging_init (uint64_t mem_end) {
 	pml4 = base_pml4 = palloc_get_page (PAL_ASSERT | PAL_ZERO);
 
 	extern char start, _end_kernel_text;
+	// 물리 주소 [0 ~ mem_end]를
+	//   [LOADER_KERN_BASE ~ LOADER_KERN_BASE + mem_end]에 매핑합니다.
 	// Maps physical address [0 ~ mem_end] to
 	//   [LOADER_KERN_BASE ~ LOADER_KERN_BASE + mem_end].
 	for (uint64_t pa = 0; pa < mem_end; pa += PGSIZE) {
@@ -162,31 +186,31 @@ paging_init (uint64_t mem_end) {
 		if ((pte = pml4e_walk (pml4, va, 1)) != NULL)
 			*pte = pa | perm;
 	}
-
+	// CR3 레지스터를 새로운 페이지 테이블 주소로 업데이트합니다.
 	// reload cr3
 	pml4_activate(0);
 }
-
+/* 커널 커맨드 라인을 단어로 분리하여 argv 형식의 배열로 반환합니다. */
 /* Breaks the kernel command line into words and returns them as
    an argv-like array. */
 static char **
 read_command_line (void) {
-	static char *argv[LOADER_ARGS_LEN / 2 + 1];
-	char *p, *end;
-	int argc;
+	static char *argv[LOADER_ARGS_LEN / 2 + 1];		// 커맨드 라인 인자를 저장할 배열
+	char *p, *end;																// 문자열을 순회하기 위한 포인터들
+	int argc;																			// 인자의 수
 	int i;
 
-	argc = *(uint32_t *) ptov (LOADER_ARG_CNT);
-	p = ptov (LOADER_ARGS);
-	end = p + LOADER_ARGS_LEN;
-	for (i = 0; i < argc; i++) {
+	argc = *(uint32_t *) ptov (LOADER_ARG_CNT);		// 커널로 부터 전달 받은 인자의 수를 읽어옴
+	p = ptov (LOADER_ARGS);												// 인자 문자열의 시작 위치
+	end = p + LOADER_ARGS_LEN;										// 인자 문자열의 끝 위치
+	for (i = 0; i < argc; i++) {									// 인자 수만큼 반복
 		if (p >= end)
-			PANIC ("command line arguments overflow");
+			PANIC ("command line arguments overflow");	// 인자가 예상 범위를 초과하면 패닉
 
-		argv[i] = p;
-		p += strnlen (p, end - p) + 1;
+		argv[i] = p;																// 현재 위치의 문자열을 배열에 저장
+		p += strnlen (p, end - p) + 1;							// 다음 인자의 윛로 이동 (null 문자 포함)
 	}
-	argv[argc] = NULL;
+	argv[argc] = NULL;														// 배열의 마지막을 NULL로 마킹
 
 	/* Print kernel command line. */
 	printf ("Kernel command line:");
@@ -200,6 +224,8 @@ read_command_line (void) {
 	return argv;
 }
 
+/* ARGV 배열에서 옵션을 파싱하고,
+   옵션이 아닌 첫 번째 인자를 반환합니다. */
 /* Parses options in ARGV[]
    and returns the first non-option argument. */
 static char **
