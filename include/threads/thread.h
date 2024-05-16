@@ -1,7 +1,7 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
 #define USERPROG    // project2 잠금 해제
-// #define VM          // project3 잠금 해제
+#define VM          // project3 잠금 해제
 
 #include <debug.h>
 #include <list.h>
