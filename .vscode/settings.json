@@ -6,6 +6,8 @@
     "intr-stubs.h": "c",
     "stdio.h": "c",
     "list.h": "c",
-    "process.h": "c"
+    "process.h": "c",
+    "uninit.h": "c",
+    "vm.h": "c"
   }
 }
