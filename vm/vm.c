@@ -42,6 +42,11 @@ static struct frame *vm_get_victim (void);
 static bool vm_do_claim_page (struct page *page);
 static struct frame *vm_evict_frame (void);
 
+/* 해시 도우미 함수들 */
+static unsigned page_hash (const struct hash_elem *p_, void *aux UNUSED);
+static bool page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux UNUSED);
+		   
+
 /* 초기화기와 함께 대기 중인 페이지 객체를 생성합니다. 페이지를 생성하려면 직접 생성하지 말고 이 함수나 vm_alloc_page를 통해 만드세요. */
 /* Create the pending page object with initializer. If you want to create a
  * page, do not create it directly and make it through this function or
@@ -79,9 +84,17 @@ struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page *page = NULL;
 	/* TODO: Fill this function. */
-
+	// @TODO hash find 로 해야할것같은데 우선은 순회하는 방법으로 구현해놓음.
+	struct hash_iterator i;
+	hash_first (&i, &spt->hash_pages);
+	while (hash_next (&i)) {
+		page = hash_entry(hash_cur(&i), struct page, hash_elem);
+		if(page->va == va)
+			return page;
+	}
 	return page;
 }
+
 
 /* 페이지를 유효성 검사와 함께 spt에 삽입합니다. */
 /* Insert PAGE into spt with validation. */
@@ -89,8 +102,13 @@ bool
 spt_insert_page (struct supplemental_page_table *spt UNUSED,
 		struct page *page UNUSED) {
 	int succ = false;
+	
 	/* TODO: Fill this function. */
-
+	//위의 함수는 인자로 주어진 보조 페이지 테이블에 페이지 구조체를 삽입합니다.
+	//이 함수에서 주어진 보충 테이블에서 가상 주소가 존재하지 않는지 검사해야 합니다.
+	if (!hash_insert(&spt->hash_pages, &page->hash_elem))
+		succ = true;
+		
 	return succ;
 }
 
@@ -206,7 +224,9 @@ vm_do_claim_page (struct page *page) {
 /* Initialize new supplemental page table */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
+	hash_init(&spt->hash_pages, page_hash, page_less, NULL);
 }
+
 
 /* src에서 dst로 보조 페이지 테이블을 복사합니다. */
 /* Copy supplemental page table from src to dst */
@@ -222,4 +242,23 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: 스레드가 보유한 모든 보조 페이지 테이블을 파괴하고, 수정된 내용을 저장소에 씁니다. */
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
+}
+
+/* hash table 함수 */
+
+/* Returns a hash value for page p. */
+unsigned
+page_hash (const struct hash_elem *p_, void *aux UNUSED) {
+  const struct page *p = hash_entry (p_, struct page, hash_elem);
+  return hash_bytes (&p->va, sizeof p->va);
+}
+
+/* Returns true if page a precedes page b. */
+bool
+page_less (const struct hash_elem *a_,
+           const struct hash_elem *b_, void *aux UNUSED) {
+  const struct page *a = hash_entry (a_, struct page, hash_elem);
+  const struct page *b = hash_entry (b_, struct page, hash_elem);
+
+  return a->va < b->va;
 }

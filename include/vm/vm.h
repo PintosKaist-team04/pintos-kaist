@@ -2,6 +2,8 @@
 #define VM_VM_H
 #include <stdbool.h>
 #include "threads/palloc.h"
+#include <hash.h>
+
 
 enum vm_type {
 	/* 페이지가 초기화되지 않음 */
@@ -55,10 +57,14 @@ struct page {
 	const struct page_operations *operations;
 	void *va;              /* Address in terms of user space */ /* 사용자 공간에서의 주소 */
 	struct frame *frame;   /* Back reference for frame */ /* 프레임에 대한 역 참조 */
-
+	
 	/* Your implementation */ /* 여러분의 구현 */
-
-
+	struct hash_elem hash_elem;
+	/* 페이지가 중복으로 여러 곳에 저장될 수 있으므로! */
+	bool is_exist_memory;
+	bool is_exist_swap;
+	bool is_exist_disk;
+	
 	/* 각 유형의 데이터는 연합체에 바인딩됩니다.
 	 * 각 함수는 자동으로 현재의 연합체를 감지합니다. */
 	/* Per-type data are binded into the union.
@@ -107,7 +113,12 @@ struct page_operations {
  * We don't want to force you to obey any specific design for this struct.
  * All designs up to you for this. */
 struct supplemental_page_table {
+	struct hash hash_pages;
+	// todo : 보조 페이지 구조체 만들기
+	// 보조 페이지의 테이블
+
 };
+
 
 #include "threads/thread.h"
 void supplemental_page_table_init (struct supplemental_page_table *spt);
