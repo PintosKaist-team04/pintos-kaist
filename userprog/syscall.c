@@ -35,8 +35,6 @@ int wait(pid_t);
 int open(const char *file);
 void exit(int status);
 
-struct lock filesys_lock;
-
 /* 시스템 호출.
  *
  * 이전에 시스템 호출 서비스는 인터럽트 핸들러에서 처리되었습니다
@@ -125,7 +123,6 @@ void syscall_handler(struct intr_frame *f UNUSED) {
             break;
 
         case SYS_FORK:
-            memcpy(&thread_current()->parent_if, f, sizeof(struct intr_frame));
             f->R.rax = fork(f->R.rdi);
             break;
 
@@ -254,7 +251,10 @@ int wait(pid_t) {
 }
 
 tid_t fork(const char *thread_name) {
-    return process_fork(thread_name, &thread_current()->parent_if);
+    check_address(thread_name);
+    struct intr_frame *if_ = pg_round_up(&thread_name) - sizeof(struct intr_frame);
+    
+    return process_fork(thread_name, if_);
 }
 
 void seek(int fd, unsigned position) {

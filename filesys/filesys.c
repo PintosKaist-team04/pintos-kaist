@@ -13,6 +13,9 @@
 /* The disk that contains the file system. */
 struct disk *filesys_disk;
 
+/* 파일 시스템 락 */
+struct lock filesys_lock;
+
 static void do_format (void);
 
 /* 파일 시스템 모듈을 초기화합니다.
@@ -44,6 +47,8 @@ filesys_init (bool format) {
 
 	free_map_open ();
 #endif
+	/* 파일 시스템 락 초기화 */
+	lock_init(&filesys_lock);
 }
 
 /* 파일 시스템 모듈을 종료하고, 기록되지 않은 데이터를 디스크에 씁니다. */

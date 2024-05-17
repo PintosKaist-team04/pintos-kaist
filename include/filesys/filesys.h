@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "filesys/off_t.h"
+#include "threads/synch.h"
 
 /* 시스템 파일 아이노드의 섹터 */
 /* Sectors of system file inodes. */
@@ -12,6 +13,9 @@
 /* 파일 시스템에 사용되는 디스크 */
 /* Disk used for file system. */
 extern struct disk *filesys_disk;
+
+/* 파일 시스템 락 */
+extern struct lock filesys_lock;
 
 void filesys_init (bool format);
 void filesys_done (void);

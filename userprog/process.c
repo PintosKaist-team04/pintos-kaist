@@ -102,7 +102,7 @@ tid_t process_fork(const char *name, struct intr_frame *if_ UNUSED) {
     struct thread *cur = thread_current();
 
     // 현재 스레드를 fork한 new 스레드를 생성한다.
-    tid_t pid = thread_create(name, PRI_DEFAULT, __do_fork, cur);
+    tid_t pid = thread_create(name, PRI_DEFAULT, __do_fork, if_);
     if (pid == TID_ERROR)
         return TID_ERROR;
 
@@ -181,11 +181,11 @@ static bool duplicate_pte(uint64_t *pte, void *va, void *aux) {
  *       this function. */
 static void __do_fork(void *aux) {
     struct intr_frame if_;
-    struct thread *parent = (struct thread *)aux;
+    struct thread *parent = (struct thread *) pg_round_down(aux);
     struct thread *current = thread_current();
     /* TODO: 부모 if_를 어떻게 전달할 지 고민합니다. (즉, process_fork()의 if_를) */
     /* TODO: somehow pass the parent_if. (i.e. process_fork()'s if_) */
-    struct intr_frame *parent_if = &parent->parent_if;
+    struct intr_frame *parent_if = aux;
 
     bool succ = true;
 
@@ -599,7 +599,9 @@ static bool load(const char *file_name, struct intr_frame *if_) {
 done:
     /* 로드가 성공했든 실패했든 여기에 도착합니다. */
     /* We arrive here whether the load is successful or not. */
-    // file_close(file);
+    if (!success)
+        file_close(file);
+        
     return success;
 }
 
