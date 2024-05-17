@@ -351,6 +351,7 @@ int process_wait(tid_t child_tid UNUSED) {
     // 3) 자식이 종료됨을 알리는 `wait_sema` signal을 받으면 현재 스레드(부모)의 자식 리스트에서 제거한다.
     list_remove(&child->child_elem);
     // 4) 자식이 완전히 종료되고 스케줄링이 이어질 수 있도록 자식에게 signal을 보낸다.
+    int exit_status = child->exit_status;
     sema_up(&child->exit_sema);
 
     return child->exit_status;
@@ -511,11 +512,18 @@ static bool load(const char *file_name, struct intr_frame *if_) {
 
     /* (프로그램 파일) 실행 파일을 엽니다. */
     /* Open executable file. */
+
+    lock_acquire(&filesys_lock);        // 파일 열기전 락 잠구기
     file = filesys_open(file_name);
     if (file == NULL) {
         printf("load: %s: open failed\n", file_name);
+        lock_release(&filesys_lock);
         goto done;
     }
+
+    t->running = file;
+    file_deny_write(file);
+    lock_release(&filesys_lock);        // 파일 열고 쓰기 방지후 락 해제
 
     /* 실행 가능한 헤더를 읽고 확인합니다. */
     /* Read and verify executable header. */
@@ -581,8 +589,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
         }
     }
 
-    t->running = file;
-    file_deny_write(file);
+
 
     /* Set up stack. */
     if (!setup_stack(if_))
@@ -601,7 +608,7 @@ done:
     /* We arrive here whether the load is successful or not. */
     if (!success)
         file_close(file);
-        
+
     return success;
 }
 
