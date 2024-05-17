@@ -35,8 +35,6 @@ int wait(pid_t);
 int open(const char *file);
 void exit(int status);
 
-struct lock filesys_lock;
-
 /* 시스템 호출.
  *
  * 이전에 시스템 호출 서비스는 인터럽트 핸들러에서 처리되었습니다
