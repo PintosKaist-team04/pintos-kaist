@@ -83,16 +83,15 @@ err:
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page *page = NULL;
-	/* TODO: Fill this function. */
-	// @TODO hash find 로 해야할것같은데 우선은 순회하는 방법으로 구현해놓음.
-	struct hash_iterator i;
-	hash_first (&i, &spt->hash_pages);
-	while (hash_next (&i)) {
-		page = hash_entry(hash_cur(&i), struct page, hash_elem);
-		if(page->va == va)
-			return page;
+	struct hash_elem *elem;
+	page->va = va;
+	
+	elem = hash_find(&spt->hash_pages, &page->hash_elem);
+	
+	if (elem != NULL) {
+		return hash_entry (elem, struct page, hash_elem);
 	}
-	return page;
+	return NULL;
 }
 
 
