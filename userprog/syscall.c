@@ -251,6 +251,7 @@ int wait(pid_t) {
 }
 
 tid_t fork(const char *thread_name) {
+    check_address(thread_name);
     struct intr_frame *if_ = pg_round_up(&thread_name) - sizeof(struct intr_frame);
     
     return process_fork(thread_name, if_);
