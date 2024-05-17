@@ -513,7 +513,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
     /* (프로그램 파일) 실행 파일을 엽니다. */
     /* Open executable file. */
 
-    lock_acquire(&filesys_lock);        // 파일 열기전 락 잠구기
+    // lock_acquire(&filesys_lock);        // 파일 열기전 락 잠구기
     file = filesys_open(file_name);
     if (file == NULL) {
         printf("load: %s: open failed\n", file_name);
@@ -523,7 +523,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
 
     t->running = file;
     file_deny_write(file);
-    lock_release(&filesys_lock);        // 파일 열고 쓰기 방지후 락 해제
+    // lock_release(&filesys_lock);        // 파일 열고 쓰기 방지후 락 해제
 
     /* 실행 가능한 헤더를 읽고 확인합니다. */
     /* Read and verify executable header. */
