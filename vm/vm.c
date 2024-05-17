@@ -152,6 +152,16 @@ static struct frame *
 vm_get_frame (void) {
 	struct frame *frame = NULL;
 	/* TODO: Fill this function. */
+	
+	frame = malloc(sizeof(struct frame));
+
+	// 프레임 구조체 멤버들 초기화
+	frame->kva = palloc_get_page(PAL_USER);
+	if (frame->kva == NULL) {
+		free(frame);
+		PANIC("todo: vm_get_frame");
+	}
+	frame->page = NULL;
 
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
@@ -197,8 +207,8 @@ vm_dealloc_page (struct page *page) {
 bool
 vm_claim_page (void *va UNUSED) {
 	struct page *page = NULL;
-	/* TODO: Fill this function */
-
+	page = spt_find_page(&thread_current()->spt, va);
+	if (page == NULL) return false;
 	return vm_do_claim_page (page);
 }
 
@@ -213,9 +223,16 @@ vm_do_claim_page (struct page *page) {
 	frame->page = page;
 	page->frame = frame;
 
-	/* TODO: 페이지 테이블 항목을 삽입하여 페이지의 VA를 프레임의 PA로 매핑합니다. */
+	/* TODO: 페이지 테이블 항목을 삽입하여 
+	 * 페이지의 VA를 프레임의 PA로 매핑합니다. */
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
-
+	// @todo: rw 모드 어떻게 넘겨줄지
+	
+	if (!pml4_set_page (thread_current()->pml4, page->va, frame->kva, true))
+	{
+		vm_dealloc_page(frame);
+		return false;
+	}
 	return swap_in (page, frame->kva);
 }
 

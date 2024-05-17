@@ -60,8 +60,10 @@ struct page {
 	
 	/* Your implementation */ /* 여러분의 구현 */
 	struct hash_elem hash_elem;
+	bool is_writable;
+
 	/* 페이지가 중복으로 여러 곳에 저장될 수 있으므로! */
-	bool is_exist_memory;
+	bool is_exist_frame;
 	bool is_exist_swap;
 	bool is_exist_disk;
 	
