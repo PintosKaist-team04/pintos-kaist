@@ -125,7 +125,6 @@ void syscall_handler(struct intr_frame *f UNUSED) {
             break;
 
         case SYS_FORK:
-            memcpy(&thread_current()->parent_if, f, sizeof(struct intr_frame));
             f->R.rax = fork(f->R.rdi);
             break;
 
@@ -254,7 +253,9 @@ int wait(pid_t) {
 }
 
 tid_t fork(const char *thread_name) {
-    return process_fork(thread_name, &thread_current()->parent_if);
+    struct intr_frame *if_ = pg_round_up(&thread_name) - sizeof(struct intr_frame);
+    
+    return process_fork(thread_name, if_);
 }
 
 void seek(int fd, unsigned position) {
