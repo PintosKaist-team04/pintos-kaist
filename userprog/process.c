@@ -850,6 +850,27 @@ static bool lazy_load_segment(struct page *page, void *aux) {
     /* TODO: Load the segment from the file */
     /* TODO: This called when the first page fault occurs on address VA. */
     /* TODO: VA is available when calling this function. */
+    
+    struct aux *aux_meta = (struct aux *) aux;
+    struct file *file = aux_meta->file;
+	off_t ofs = aux_meta->ofs;
+	uint32_t read_bytes = aux_meta->read_bytes;
+	uint32_t zero_bytes = aux_meta->zero_bytes;
+
+    //@todo: assert 문 여기 선언하는거 맞는지 고민해보기
+    ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
+    ASSERT(pg_ofs(page->va) == 0);
+    ASSERT(ofs % PGSIZE == 0);
+
+    file_seek(file, ofs);
+
+    if (file_read(file, page->frame->kva, read_bytes) != (int)read_bytes) {
+        palloc_free_page(page->frame->kva);
+        return false;
+    }
+    memset(page->frame->kva + read_bytes, 0, zero_bytes);
+
+    return true;
 }
 
 /* Loads a segment starting at offset OFS in FILE at address
