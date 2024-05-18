@@ -253,9 +253,8 @@ vm_do_claim_page (struct page *page) {
 	/* TODO: 페이지 테이블 항목을 삽입하여 
 	 * 페이지의 VA를 프레임의 PA로 매핑합니다. */
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
-	// @todo: rw 모드 어떻게 넘겨줄지
 	
-	if (!pml4_set_page (thread_current()->pml4, page->va, frame->kva, true))
+	if (!pml4_set_page (thread_current()->pml4, page->va, frame->kva, page->is_writable))
 	{
 		vm_dealloc_page(frame);
 		return false;
