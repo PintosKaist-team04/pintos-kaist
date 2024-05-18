@@ -1,6 +1,14 @@
 #ifndef __LIB_KERNEL_HASH_H
 #define __LIB_KERNEL_HASH_H
 
+/* 해시 테이블.
+ * 이 데이터 구조는 프로젝트 3을 위한 Pintos 투어에서 철저히 문서화되어 있습니다.
+ * 이것은 체이닝을 사용하는 표준 해시 테이블입니다. 
+ * 테이블에서 요소를 찾기 위해 요소의 데이터에 대한 해시 함수를 계산하고 그것을 이중 연결 리스트 배열의 인덱스로 사용한 다음 리스트를 선형으로 검색합니다.
+ * 체인 리스트는 동적 할당을 사용하지 않습니다. 대신 해시에 있을 수 있는 각 구조체는 반드시 struct hash_elem 멤버를 내장해야 합니다. 
+ * 모든 해시 함수는 이러한 'struct hash_elem'에서 작동합니다. 
+ * hash_entry 매크로는 struct hash_elem을 포함하는 구조체 객체로의 변환을 허용합니다. 
+ * 이는 연결 리스트 구현에서 사용되는 동일한 기술입니다. 자세한 설명은 lib/kernel/list.h를 참조하세요.*/
 /* Hash table.
  *
  * This data structure is thoroughly documented in the Tour of
@@ -30,6 +38,8 @@ struct hash_elem {
 	struct list_elem list_elem;
 };
 
+/* 해시 요소인 HASH_ELEM의 포인터를 HASH_ELEM이 포함된 구조체의 포인터로 변환합니다.
+ * 바깥 구조체의 이름 STRUCT와 해시 요소의 멤버 이름 MEMBER를 제공하세요. 파일 맨 위의 큰 주석에서 예제를 참조하세요.*/
 /* Converts pointer to hash element HASH_ELEM into a pointer to
  * the structure that HASH_ELEM is embedded inside.  Supply the
  * name of the outer structure STRUCT and the member name MEMBER
