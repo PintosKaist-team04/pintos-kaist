@@ -5,7 +5,7 @@
 #include "vm/vm.h"
 #include "vm/inspect.h"
 
-#include "vaddr.h"
+#include "threads/vaddr.h"
 
 /* 각 하위 시스템의 초기화 코드를 호출하여 가상 메모리 하위 시스템을 초기화합니다. */
 /* Initializes the virtual memory subsystem by invoking each subsystem's
