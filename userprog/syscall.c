@@ -178,7 +178,10 @@ void syscall_handler(struct intr_frame *f UNUSED) {
 
 void check_address(void *uaddr) {
     struct thread *cur = thread_current();
-    if (uaddr == NULL || is_kernel_vaddr(uaddr) || pml4_get_page(cur->pml4, uaddr) == NULL) {
+    // if (uaddr == NULL || is_kernel_vaddr(uaddr) || pml4_get_page(cur->pml4, uaddr) == NULL) {
+    //     exit(-1);
+    // }
+    if (uaddr == NULL || is_kernel_vaddr(uaddr)) {
         exit(-1);
     }
 }
