@@ -218,6 +218,30 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* TODO: Validate the fault */ /* TODO: 오류를 유효성 검사하세요. */
 	/* TODO: Your code goes here */
 
+	if(spt_find_page(spt, addr)) 
+		return vm_do_claim_page (page);
+
+	if(not_present) {
+		PANIC("vm_try_handle_fault: not_present\n");
+		return false;
+	}
+	if(write) {
+		PANIC("vm_try_handle_fault: write\n");
+		return false;
+	}
+	if(user) {
+		PANIC("vm_try_handle_fault: user\n");
+		return false;
+	}
+
+	// 유효하지 않은 페이지 폴트 찾아주기
+    // 종류 1) 유효하지 않은 접근
+    // 종류 2) 쓰기 시도
+    // 종류 3) 페이지 존재 x
+    // 종류 4) 사용자 모드로 커널 모드 접근
+		// @todo: 핸들 검증 더 추가할것.
+
+
 	return vm_do_claim_page (page);
 }
 
