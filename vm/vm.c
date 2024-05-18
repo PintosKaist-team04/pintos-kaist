@@ -5,6 +5,8 @@
 #include "vm/vm.h"
 #include "vm/inspect.h"
 
+#include "vaddr.h"
+
 /* 각 하위 시스템의 초기화 코드를 호출하여 가상 메모리 하위 시스템을 초기화합니다. */
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -84,6 +86,7 @@ struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	struct page *page = NULL;
 	struct hash_elem *elem;
+	va = pg_round_down(va);
 	page->va = va;
 	
 	elem = hash_find(&spt->hash_pages, &page->hash_elem);
