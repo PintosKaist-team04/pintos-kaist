@@ -858,6 +858,7 @@ static bool lazy_load_segment(struct page *page, void *aux) {
 	off_t ofs = aux_meta->ofs;
 	uint32_t read_bytes = aux_meta->read_bytes;
 	uint32_t zero_bytes = aux_meta->zero_bytes;
+    // free(aux);  //@todo: free 맞는지 고민하기
 
     //@todo: assert 문 여기 선언하는거 맞는지 고민해보기
     ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
@@ -868,6 +869,8 @@ static bool lazy_load_segment(struct page *page, void *aux) {
 
     if (file_read(file, page->frame->kva, read_bytes) != (int)read_bytes) {
         palloc_free_page(page->frame->kva);
+        free(aux);  //@todo: free 맞는지 고민하기
+
         return false;
     }
     memset(page->frame->kva + read_bytes, 0, zero_bytes);

@@ -101,6 +101,8 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		if(spt_insert_page(spt, page)) return true;
 	}
 err:
+	free(aux);  //@todo: free 맞는지 고민하기
+
 	return false;
 }
 
