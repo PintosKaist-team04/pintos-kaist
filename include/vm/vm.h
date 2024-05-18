@@ -46,6 +46,13 @@ struct thread;
 
 #define VM_TYPE(type) ((type) & 7)
 
+struct aux {
+	struct file *file;
+	off_t ofs;
+	uint32_t read_bytes;
+	uint32_t zero_bytes;
+};
+
 /* "페이지"의 표현입니다.
  * 이는 네 개의 "자식 클래스"인 uninit_page, file_page, anon_page 및 페이지 캐시 (프로젝트 4)를 가진 "부모 클래스"의 종류입니다.
  * 이 구조체의 사전 정의된 멤버를 제거하거나 수정하지 마십시오. */
