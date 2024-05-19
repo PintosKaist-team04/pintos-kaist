@@ -110,16 +110,18 @@ err:
 /* Find VA from spt and return page. On error, return NULL. */
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
-	struct page *page = NULL;
+	struct page *page = malloc(sizeof(struct page));
 	struct hash_elem *elem;
 	va = pg_round_down(va);
 	page->va = va;
 	
 	elem = hash_find(&spt->hash_pages, &page->hash_elem);
-	
+
+	free(page);
 	if (elem != NULL) {
 		return hash_entry (elem, struct page, hash_elem);
 	}
+
 	return NULL;
 }
 
@@ -218,31 +220,34 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* TODO: Validate the fault */ /* TODO: 오류를 유효성 검사하세요. */
 	/* TODO: Your code goes here */
 
-	if(spt_find_page(spt, addr)) 
-		return vm_do_claim_page (page);
+	//주소가 존재하지 않을 때
+	if (addr == NULL)
+		return false;
+	//커널 가상 주소일 때
+	if (is_kernel_vaddr(addr))
+		return false;
 
-	if(not_present) {
-		PANIC("vm_try_handle_fault: not_present\n");
-		return false;
+	if (not_present){
+		page = spt_find_page(spt, addr);
+
+		if (page == NULL) return false;
+		if (write == true && page->is_writable == false) return false;
+
+		return vm_do_claim_page (page);
 	}
-	if(write) {
-		PANIC("vm_try_handle_fault: write\n");
-		return false;
-	}
-	if(user) {
-		PANIC("vm_try_handle_fault: user\n");
-		return false;
-	}
+
+	//@todo : addr은 항상 user 영역인가?
+	// if(user) {
+	// 	PANIC("vm_try_handle_fault: user\n");
+	// 	return false;
+	// }
 
 	// 유효하지 않은 페이지 폴트 찾아주기
     // 종류 1) 유효하지 않은 접근
     // 종류 2) 쓰기 시도
     // 종류 3) 페이지 존재 x
     // 종류 4) 사용자 모드로 커널 모드 접근
-		// @todo: 핸들 검증 더 추가할것.
-
-
-	return vm_do_claim_page (page);
+		// @todo: 핸들 검증 더 추가할것. 완!
 }
 
 /* 페이지를 해제합니다.
