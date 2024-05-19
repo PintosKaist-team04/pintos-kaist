@@ -220,18 +220,28 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	/* TODO: Your code goes here */
 
 	//주소가 존재하지 않을 때
-	if (addr == NULL)
+	if (addr == NULL){
+		exit(-1);
 		return false;
+	}
+
 	//커널 가상 주소일 때
-	if (is_kernel_vaddr(addr))
+	if (is_kernel_vaddr(addr)) {
+		exit(-1);
 		return false;
+	}
 
 	if (not_present){
 		page = spt_find_page(spt, addr);
-
-		if (page == NULL) return false;
-		if (write == true && page->is_writable == false) return false;
-
+		if (page == NULL){
+			exit(-1);
+			return false;
+		}
+		if (write == true && page->is_writable == false){
+			exit(-1);
+			return false;
+		}
+		
 		return vm_do_claim_page (page);
 	}
 
