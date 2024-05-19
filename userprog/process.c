@@ -854,6 +854,7 @@ static bool lazy_load_segment(struct page *page, void *aux) {
     /* TODO: VA is available when calling this function. */
     
     struct aux *aux_meta = (struct aux *) aux;
+
     struct file *file = aux_meta->file;
 	off_t ofs = aux_meta->ofs;
 	uint32_t read_bytes = aux_meta->read_bytes;
@@ -869,8 +870,7 @@ static bool lazy_load_segment(struct page *page, void *aux) {
 
     if (file_read(file, page->frame->kva, read_bytes) != (int)read_bytes) {
         palloc_free_page(page->frame->kva);
-        free(aux);  //@todo: free 맞는지 고민하기
-
+        //free(aux);  //@todo: free 맞는지 고민하기
         return false;
     }
     memset(page->frame->kva + read_bytes, 0, zero_bytes);
@@ -914,12 +914,14 @@ static bool load_segment(struct file *file, off_t ofs, uint8_t *upage, uint32_t 
         aux->zero_bytes = page_zero_bytes; 
         
         if (!vm_alloc_page_with_initializer(VM_ANON, upage, writable, lazy_load_segment, aux))
+        {   
             return false;
-
+        }
         /* Advance. */
         read_bytes -= page_read_bytes;
         zero_bytes -= page_zero_bytes;
         upage += PGSIZE;
+        ofs += page_read_bytes; //joo
     }
     return true;
 }
@@ -934,11 +936,9 @@ static bool setup_stack(struct intr_frame *if_) {
      * TODO: You should mark the page is stack. */
     /* TODO: Your code goes here */
 
-    vm_alloc_page(VM_ANON, stack_bottom, true);
-    if(vm_claim_page(stack_bottom)) {
-        if_->rsp = USER_STACK;
-        //@todo: page가 stack 임을 표시하기
-        success = true;
+    if (vm_alloc_page(VM_ANON, stack_bottom, true)){
+        success = vm_claim_page(stack_bottom);
+        if (success) if_->rsp = USER_STACK;
     }
     return success;
 }

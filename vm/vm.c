@@ -98,10 +98,10 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 
 		page->is_writable = writable;
 
-		if(spt_insert_page(spt, page)) return true;
+		return spt_insert_page(spt, page);
 	}
 err:
-	free(aux);  //@todo: free 맞는지 고민하기
+	//free(aux);  //@todo: free 맞는지 고민하기
 
 	return false;
 }
@@ -110,7 +110,7 @@ err:
 /* Find VA from spt and return page. On error, return NULL. */
 struct page *
 spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
-	struct page *page = NULL;
+	struct page *page = malloc(sizeof(struct page));
 	struct hash_elem *elem;
 	va = pg_round_down(va);
 	page->va = va;
@@ -120,6 +120,8 @@ spt_find_page (struct supplemental_page_table *spt UNUSED, void *va UNUSED) {
 	if (elem != NULL) {
 		return hash_entry (elem, struct page, hash_elem);
 	}
+
+	free(page);
 	return NULL;
 }
 
@@ -134,10 +136,11 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 	/* TODO: Fill this function. */
 	//위의 함수는 인자로 주어진 보조 페이지 테이블에 페이지 구조체를 삽입합니다.
 	//이 함수에서 주어진 보충 테이블에서 가상 주소가 존재하지 않는지 검사해야 합니다.
-	if (!hash_insert(&spt->hash_pages, &page->hash_elem))
-		succ = true;
+	// if (!hash_insert(&spt->hash_pages, &page->hash_elem))
+	// 	succ = true;
 		
-	return succ;
+	// return succ; joo
+	return hash_insert(&spt->hash_pages, &page->hash_elem) == NULL ? true:false;
 }
 
 void
@@ -217,32 +220,44 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	struct page *page = NULL;
 	/* TODO: Validate the fault */ /* TODO: 오류를 유효성 검사하세요. */
 	/* TODO: Your code goes here */
+    if (addr == NULL)
+        return false;
 
-	if(spt_find_page(spt, addr)) 
-		return vm_do_claim_page (page);
+    if (is_kernel_vaddr(addr))
+        return false;
 
 	if(not_present) {
-		PANIC("vm_try_handle_fault: not_present\n");
-		return false;
+        /* TODO: Validate the fault */
+        page = spt_find_page(spt, addr);
+        if (page == NULL)
+            return false;
+        if (write == 1 && page->is_writable == 0) // write 불가능한 페이지에 write 요청한 경우
+            return false;
+        return vm_do_claim_page(page);
 	}
-	if(write) {
-		PANIC("vm_try_handle_fault: write\n");
-		return false;
-	}
-	if(user) {
-		PANIC("vm_try_handle_fault: user\n");
-		return false;
-	}
+	// 	if(!(page = spt_find_page(spt, addr))) 
+	// 		return vm_claim_page (page);
+	// 	PANIC("vm_try_handle_fault: not_present\n");
+	// 	return false;
+	// }
+	// if(write) {
+	// 	PANIC("vm_try_handle_fault: write\n");
+	// 	return false;
+	// }
+	// if(user) {
+	// 	PANIC("vm_try_handle_fault: user\n");
+	// 	return false;
+	// }
 
-	// 유효하지 않은 페이지 폴트 찾아주기
-    // 종류 1) 유효하지 않은 접근
-    // 종류 2) 쓰기 시도
-    // 종류 3) 페이지 존재 x
-    // 종류 4) 사용자 모드로 커널 모드 접근
-		// @todo: 핸들 검증 더 추가할것.
+	// // 유효하지 않은 페이지 폴트 찾아주기
+    // // 종류 1) 유효하지 않은 접근
+    // // 종류 2) 쓰기 시도
+    // // 종류 3) 페이지 존재 x
+    // // 종류 4) 사용자 모드로 커널 모드 접근
+	// 	// @todo: 핸들 검증 더 추가할것.
 
 
-	return vm_do_claim_page (page);
+	// return vm_claim_page (page);
 }
 
 /* 페이지를 해제합니다.
@@ -255,12 +270,13 @@ vm_dealloc_page (struct page *page) {
 	free (page);
 }
 
-/* VA에 할당된 페이지를 요구합니다. */
+/* 위 함수는 인자로 주어진 va에 페이지를 할당하고, 해당 페이지에 프레임을 할당합니다. 
+ * 당신은 우선 한 페이지를 얻어야 하고 그 이후에 해당 페이지를 인자로 갖는 vm_do_claim_page라는 함수를 호출해야 합니다. */
 /* Claim the page that allocate on VA. */
 bool
 vm_claim_page (void *va UNUSED) {
-	struct page *page = NULL;
-	page = spt_find_page(&thread_current()->spt, va);
+	struct page *page = spt_find_page(&thread_current()->spt, va);
+	//page = spt_find_page(&thread_current()->spt, va);
 	if (page == NULL) return false;
 	return vm_do_claim_page (page);
 }
@@ -292,6 +308,7 @@ vm_do_claim_page (struct page *page) {
 /* Initialize new supplemental page table */
 void
 supplemental_page_table_init (struct supplemental_page_table *spt UNUSED) {
+	//hash_init(&spt->hash_pages, page_hash, page_less, NULL); joo
 	hash_init(&spt->hash_pages, page_hash, page_less, NULL);
 }
 
