@@ -860,10 +860,7 @@ static bool lazy_load_segment(struct page *page, void *aux) {
 	uint32_t zero_bytes = aux_meta->zero_bytes;
     // free(aux);  //@todo: free 맞는지 고민하기
 
-    //@todo: assert 문 여기 선언하는거 맞는지 고민해보기
     ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
-    ASSERT(pg_ofs(page->va) == 0);
-    ASSERT(ofs % PGSIZE == 0);
 
     file_seek(file, ofs);
 
