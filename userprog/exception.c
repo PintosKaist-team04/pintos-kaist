@@ -178,7 +178,7 @@ page_fault (struct intr_frame *f) {
 	// @project 2 용 페이지 폴트
 	// if ( fault_addr == NULL || !is_user_vaddr(fault_addr))
 	// 	exit(-1);
-	if ( fault_addr == NULL)
+	if (fault_addr == NULL || !is_user_vaddr(fault_addr))
 		exit(-1);
 
 	/* 인터럽트를 다시 켭니다 (CR2가 변경되기 전에 확실하게 읽을 수 있도록). */
