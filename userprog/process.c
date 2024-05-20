@@ -858,7 +858,7 @@ static bool lazy_load_segment(struct page *page, void *aux) {
 	off_t ofs = aux_meta->ofs;
 	uint32_t read_bytes = aux_meta->read_bytes;
 	uint32_t zero_bytes = aux_meta->zero_bytes;
-    // free(aux);  //@todo: free 맞는지 고민하기
+    free(aux);  //@todo: swap in/swap out 제대로 구현하기 전까지는 여기서 aux free 해주기!
 
     ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
 
@@ -871,7 +871,6 @@ static bool lazy_load_segment(struct page *page, void *aux) {
         return false;
     }
     memset(page->frame->kva + read_bytes, 0, zero_bytes);
-
     return true;
 }
 
