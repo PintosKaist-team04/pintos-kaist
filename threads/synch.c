@@ -264,7 +264,7 @@ void donate_priority(void) {
     struct thread *holder;
 
     for (int i = 0; i < 8; i++) {
-        if (curr->wait_on_lock == NULL)
+        if (curr->wait_on_lock == NULL || curr->wait_on_lock->holder == NULL) //parallel 테스트를 위해 추가함
             return;
         holder = curr->wait_on_lock->holder;
         holder->priority = curr->priority;
