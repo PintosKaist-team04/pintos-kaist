@@ -45,8 +45,9 @@ static bool vm_do_claim_page (struct page *page);
 static struct frame *vm_evict_frame (void);
 
 /* 해시 도우미 함수들 */
-static unsigned page_hash (const struct hash_elem *p_, void *aux UNUSED);
-static bool page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux UNUSED);
+unsigned page_hash (const struct hash_elem *p_, void *aux UNUSED);
+bool page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux UNUSED);
+void page_destructor (struct hash_elem *page_elem, void *aux UNUSED);
 		   
 
 /* 초기화기와 함께 대기 중인 페이지 객체를 생성합니다. 페이지를 생성하려면 직접 생성하지 말고 이 함수나 vm_alloc_page를 통해 만드세요. */
@@ -357,20 +358,7 @@ supplemental_page_table_kill (struct supplemental_page_table *spt UNUSED) {
 	/* TODO: Destroy all the supplemental_page_table hold by thread and
 	 * TODO: writeback all the modified contents to the storage. */
 	
-	struct hash_iterator i;
-	hash_first (&i, &spt->hash_pages);
-	while (hash_next (&i)) {
-		struct page *p = hash_entry(hash_cur (&i), struct page, hash_elem);
-
-		// if (p->is_writable==true && p->operations->type != VM_UNINIT){ //@todo: 쓰기 작업
-		// 	struct aux *aux = p->anon.aux;
-		// 	file_write_at(&aux->file, p->frame->kva, PGSIZE, aux->ofs);
-		// }
-		hash_delete(&spt->hash_pages, hash_cur(&i));
-		hash_first (&i, &spt->hash_pages); // i 초기화
-		vm_dealloc_page(p);
-	}
-
+	hash_clear(&spt->hash_pages, page_destructor);
 }
 
 /* hash table 함수 */
@@ -390,4 +378,15 @@ page_less (const struct hash_elem *a_,
   const struct page *b = hash_entry (b_, struct page, hash_elem);
 
   return a->va < b->va;
+}
+
+void
+page_destructor (struct hash_elem *page_elem, void *aux UNUSED){
+
+	if (page_elem == NULL) return;
+
+	struct page *p = hash_entry(page_elem, struct page, hash_elem);
+	//@todo: 동적으로 할당받은게 뭐가 있는지 조사 후 추가
+	destroy(p); // page vm_type 별로 destroy 함수 호출
+	free(p);
 }
