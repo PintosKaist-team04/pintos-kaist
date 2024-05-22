@@ -216,7 +216,7 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
 	struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
 	struct page *page = NULL;
-	void *rsp = (void *)f->rsp;
+	void *rsp = get_user_if->rsp;
 	
 	/* TODO: Validate the fault */ /* TODO: 오류를 유효성 검사하세요. */
 	/* TODO: Your code goes here */
@@ -226,9 +226,6 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		exit(-1);
 		return false;
 	}
-	
-	if (!user)
-		rsp = thread_current()->rsp;
 
 	if (not_present){
 		if (USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 == addr && addr <= USER_STACK)
