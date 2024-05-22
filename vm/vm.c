@@ -80,7 +80,7 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		if(page == NULL)
 			goto err;
 		bool (*initializer)(struct page *, enum vm_type, void *kva) = NULL;
-		switch (type)
+		switch (check_type)
 		{		
 			case VM_ANON:
 				initializer = anon_initializer;
@@ -201,6 +201,7 @@ vm_get_frame (void) {
 /* Growing the stack. */
 static void
 vm_stack_growth (void *addr UNUSED) {
+	vm_alloc_page((VM_ANON|VM_MARKER_0), pg_round_down(addr), true);
 }
 
 /* 쓰기 보호된 페이지의 오류를 처리합니다. */
@@ -213,30 +214,36 @@ vm_handle_wp (struct page *page UNUSED) {
 bool
 vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		bool user UNUSED, bool write UNUSED, bool not_present UNUSED) {
-	struct supplemental_page_table *spt UNUSED = &thread_current ()->spt;
+	struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
 	struct page *page = NULL;
+	void *rsp = (void *)f->rsp;
+	
 	/* TODO: Validate the fault */ /* TODO: 오류를 유효성 검사하세요. */
 	/* TODO: Your code goes here */
 
-	//주소가 존재하지 않을 때
-	if (addr == NULL){
+	//주소가 존재하지 않을 때 or 커널 가상 주소일 때 (check_address와 똑같음)
+	if (addr == NULL || is_kernel_vaddr(addr)){
 		exit(-1);
 		return false;
 	}
-
-	//커널 가상 주소일 때
-	if (is_kernel_vaddr(addr)) {
-		exit(-1);
-		return false;
-	}
+	
+	if (!user)
+		rsp = thread_current()->rsp;
 
 	if (not_present){
+		if (USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 == addr && addr <= USER_STACK)
+            vm_stack_growth(addr);
+        else if (USER_STACK - (1 << 20) <= rsp && rsp <= addr && addr <= USER_STACK)
+            vm_stack_growth(addr);
+		
 		page = spt_find_page(spt, addr);
+
 		if (page == NULL){
 			exit(-1);
 			return false;
 		}
-		if (write == true && page->is_writable == false){
+
+		if (write == true & page->is_writable == false){
 			exit(-1);
 			return false;
 		}
@@ -244,11 +251,8 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 		return vm_do_claim_page (page);
 	}
 
-	//@todo : addr은 항상 user 영역인가?
-	// if(user) {
-	// 	PANIC("vm_try_handle_fault: user\n");
-	// 	return false;
-	// }
+	exit(-1);
+	return false;
 }
 
 /* 페이지를 해제합니다.
