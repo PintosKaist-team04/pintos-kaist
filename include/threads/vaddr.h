@@ -22,6 +22,9 @@
 #define PGSIZE  (1 << PGBITS)              /* Bytes in a page. */
 #define PGMASK  BITMASK(PGSHIFT, PGBITS)   /* Page offset bits (0:12). */
 
+/* user 인터럽트 프레임 */
+#define get_user_if ((struct intr_frame *)(pg_round_up(thread_current() + 1) - sizeof(struct intr_frame)))
+
 /* Offset within a page. */
 #define pg_ofs(va) ((uint64_t) (va) & PGMASK) // 가상 주소에서 페이지 내 오프셋을 추출합니다.
 

@@ -113,9 +113,7 @@ void syscall_init(void) {
 /* The main system call interface */
 void syscall_handler(struct intr_frame *f UNUSED) {
     uint64_t syscall_n = f->R.rax;
-#ifdef VM
-    thread_current()->rsp = f->rsp; // 커널 모드 시스템콜 시 추가
-#endif
+
     switch (syscall_n) {
         case SYS_HALT:
             halt();
