@@ -19,14 +19,14 @@ enum vm_type {
 	/* page that hold the page cache, for project 4 */
 	VM_PAGE_CACHE = 3,
 
-	
+	/* 스택 페이지 표시 */
+	VM_MARKER_0 = (1 << 3),
+
 	/* 상태를 저장하는 비트 플래그 */
 	/* Bit flags to store state */
-
 	/* 정보를 저장하는 보조 비트 플래그 표시기입니다. int에 값이 맞을 때까지 더 많은 표시기를 추가할 수 있습니다. */
 	/* Auxillary bit flag marker for store information. You can add more
 	 * markers, until the value is fit in the int. */
-	VM_MARKER_0 = (1 << 3),
 	VM_MARKER_1 = (1 << 4),
 
 	/* 이 값 이상으로는 초과하지 마십시오. */

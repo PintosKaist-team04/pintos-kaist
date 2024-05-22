@@ -60,6 +60,10 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 
 	ASSERT (VM_TYPE(type) != VM_UNINIT)
 
+	/* vm_type 비트마스크 적용 */
+	enum vm_type check_type = type & VM_ANON;
+	if (!check_type) check_type | VM_FILE;
+
 	struct supplemental_page_table *spt = &thread_current ()->spt;
 	/* upage가 이미 사용 중인지 여부를 확인합니다. */
 	/* Check wheter the upage is already occupied or not. */
