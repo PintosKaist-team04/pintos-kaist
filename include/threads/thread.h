@@ -162,6 +162,10 @@ struct thread {
 
     /* Owned by thread.c. */
     struct intr_frame tf; /* Information for switching */
+    
+    /* 할당받은 시점의 stack 주소 */
+    void *rsp;
+
 
     struct list child_list;
     struct list_elem child_elem;
