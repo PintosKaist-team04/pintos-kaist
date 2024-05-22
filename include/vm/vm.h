@@ -2,6 +2,8 @@
 #define VM_VM_H
 #include <stdbool.h>
 #include "threads/palloc.h"
+#include <hash.h>
+
 
 enum vm_type {
 	/* 페이지가 초기화되지 않음 */
@@ -17,14 +19,14 @@ enum vm_type {
 	/* page that hold the page cache, for project 4 */
 	VM_PAGE_CACHE = 3,
 
-	
+	/* 스택 페이지 표시 */
+	VM_MARKER_0 = (1 << 3),
+
 	/* 상태를 저장하는 비트 플래그 */
 	/* Bit flags to store state */
-
 	/* 정보를 저장하는 보조 비트 플래그 표시기입니다. int에 값이 맞을 때까지 더 많은 표시기를 추가할 수 있습니다. */
 	/* Auxillary bit flag marker for store information. You can add more
 	 * markers, until the value is fit in the int. */
-	VM_MARKER_0 = (1 << 3),
 	VM_MARKER_1 = (1 << 4),
 
 	/* 이 값 이상으로는 초과하지 마십시오. */
@@ -44,6 +46,13 @@ struct thread;
 
 #define VM_TYPE(type) ((type) & 7)
 
+struct aux {
+	struct file *file;
+	off_t ofs;
+	uint32_t read_bytes;
+	uint32_t zero_bytes;
+};
+
 /* "페이지"의 표현입니다.
  * 이는 네 개의 "자식 클래스"인 uninit_page, file_page, anon_page 및 페이지 캐시 (프로젝트 4)를 가진 "부모 클래스"의 종류입니다.
  * 이 구조체의 사전 정의된 멤버를 제거하거나 수정하지 마십시오. */
@@ -55,10 +64,16 @@ struct page {
 	const struct page_operations *operations;
 	void *va;              /* Address in terms of user space */ /* 사용자 공간에서의 주소 */
 	struct frame *frame;   /* Back reference for frame */ /* 프레임에 대한 역 참조 */
-
+	
 	/* Your implementation */ /* 여러분의 구현 */
+	struct hash_elem hash_elem;
+	bool is_writable;
 
-
+	/* 페이지가 중복으로 여러 곳에 저장될 수 있으므로! */
+	bool is_exist_frame;
+	bool is_exist_swap;
+	bool is_exist_disk;
+	
 	/* 각 유형의 데이터는 연합체에 바인딩됩니다.
 	 * 각 함수는 자동으로 현재의 연합체를 감지합니다. */
 	/* Per-type data are binded into the union.
@@ -107,7 +122,12 @@ struct page_operations {
  * We don't want to force you to obey any specific design for this struct.
  * All designs up to you for this. */
 struct supplemental_page_table {
+	struct hash hash_pages;
+	// todo : 보조 페이지 구조체 만들기
+	// 보조 페이지의 테이블
+
 };
+
 
 #include "threads/thread.h"
 void supplemental_page_table_init (struct supplemental_page_table *spt);

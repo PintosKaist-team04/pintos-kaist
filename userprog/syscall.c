@@ -113,6 +113,9 @@ void syscall_init(void) {
 /* The main system call interface */
 void syscall_handler(struct intr_frame *f UNUSED) {
     uint64_t syscall_n = f->R.rax;
+#ifdef VM
+    thread_current()->rsp = f->rsp; // 커널 모드 시스템콜 시 추가
+#endif
     switch (syscall_n) {
         case SYS_HALT:
             halt();
@@ -178,7 +181,10 @@ void syscall_handler(struct intr_frame *f UNUSED) {
 
 void check_address(void *uaddr) {
     struct thread *cur = thread_current();
-    if (uaddr == NULL || is_kernel_vaddr(uaddr) || pml4_get_page(cur->pml4, uaddr) == NULL) {
+    // if (uaddr == NULL || is_kernel_vaddr(uaddr) || pml4_get_page(cur->pml4, uaddr) == NULL) {
+    //     exit(-1);
+    // }
+    if (uaddr == NULL || is_kernel_vaddr(uaddr)) {
         exit(-1);
     }
 }

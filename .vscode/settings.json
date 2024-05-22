@@ -8,6 +8,9 @@
     "list.h": "c",
     "process.h": "c",
     "uninit.h": "c",
-    "vm.h": "c"
+    "vm.h": "c",
+    "vaddr.h": "c",
+    "anon.h": "c",
+    "file.h": "c"
   }
 }

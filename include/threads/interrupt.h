@@ -46,6 +46,10 @@ struct intr_frame {
 	uint32_t __pad4;
 	/* Pushed by intrNN_stub in intr-stubs.S. */
 	uint64_t vec_no; /* Interrupt vector number. */
+
+/* CPU에 의해 가끔 푸시되며,
+그 외의 경우에는 일관성을 위해 intrNN_stub에 의해 0으로 푸시됩니다.
+CPU는 이것을 eip 바로 아래에 놓지만, 우리는 여기로 옮깁니다. */
 /* Sometimes pushed by the CPU,
    otherwise for consistency pushed as 0 by intrNN_stub.
    The CPU puts it just under `eip', but we move it here. */

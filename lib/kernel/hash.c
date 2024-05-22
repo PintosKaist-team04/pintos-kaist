@@ -38,6 +38,14 @@ hash_init (struct hash *h,
 		return false;
 }
 
+/* H에서 모든 요소를 제거합니다.
+
+   DESTRUCTOR가 null이 아니면 해시의 각 요소에 대해 호출됩니다.
+   DESTRUCTOR는 적절한 경우 해시 요소에 사용된 메모리를 해제할 수 있습니다.
+   그러나 hash_clear()가 실행되는 동안 해시 테이블 H를 수정하는 것은
+   hash_clear(), hash_destroy(), hash_insert(),
+   hash_replace(), 또는 hash_delete() 함수를 사용하더라도,
+   DESTRUCTOR 내부나 외부에서 수행되는지에 관계없이 정의되지 않은 동작을 유발합니다. */
 /* Removes all the elements from H.
 
    If DESTRUCTOR is non-null, then it is called for each element
@@ -67,6 +75,14 @@ hash_clear (struct hash *h, hash_action_func *destructor) {
 	h->elem_cnt = 0;
 }
 
+/* 해시 테이블 H를 파괴합니다.
+
+   DESTRUCTOR가 null이 아니면, 먼저 해시의 각 요소에 대해 호출됩니다.
+   DESTRUCTOR는 적절한 경우 해시 요소에 사용된 메모리를 해제할 수 있습니다.
+   그러나 hash_clear()가 실행되는 동안 해시 테이블 H를 수정하는 것은
+   hash_clear(), hash_destroy(), hash_insert(),
+   hash_replace(), 또는 hash_delete() 함수를 사용하더라도,
+   DESTRUCTOR 내부나 외부에서 수행되는지에 관계없이 정의되지 않은 동작을 유발합니다. */
 /* Destroys hash table H.
 
    If DESTRUCTOR is non-null, then it is first called for each
