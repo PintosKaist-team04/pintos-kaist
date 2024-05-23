@@ -192,6 +192,7 @@ void syscall_handler(struct intr_frame *f UNUSED) {
 
 void check_address(void *uaddr) {
     struct thread *cur = thread_current();
+    // @todo
     // if (uaddr == NULL || is_kernel_vaddr(uaddr) || pml4_get_page(cur->pml4, uaddr) == NULL) {
     //     exit(-1);
     // }
@@ -283,8 +284,14 @@ int filesize(int fd) {
 }
 
 int read(int fd, void *buffer, unsigned size) {
+    //@fixme : 버퍼가 쓰기 가능인지 체크하기
     check_address(buffer);
 
+    struct page *bf_page = spt_find_page(&thread_current()->spt, pg_round_down(buffer));
+    if (!bf_page->is_writable) {
+        exit(-1);
+    }
+       
     char *ptr = (char *)buffer;
     int bytes_read = 0;
 
