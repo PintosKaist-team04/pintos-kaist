@@ -7,13 +7,19 @@
 
 #include "threads/vaddr.h"
 
+
+/* 프레임 테이블 */
+struct list frame_table;
+
 /* 각 하위 시스템의 초기화 코드를 호출하여 가상 메모리 하위 시스템을 초기화합니다. */
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
 void
 vm_init (void) {
+
 	vm_anon_init ();
 	vm_file_init ();
+	list_init(&frame_table);
 #ifdef EFILESYS  /* For project 4 */
 	pagecache_init ();
 #endif
@@ -292,6 +298,7 @@ vm_do_claim_page (struct page *page) {
 		vm_dealloc_page(frame);
 		return false;
 	}
+	list_push_back(&frame_table, &frame->elem);
 	return swap_in (page, frame->kva);
 }
 
@@ -391,6 +398,9 @@ page_destructor (struct hash_elem *page_elem, void *aux UNUSED){
 	if (page_elem == NULL) return;
 
 	struct page *p = hash_entry(page_elem, struct page, hash_elem);
+	
+	list_remove(&p->frame->elem);
+
 	//@todo: 동적으로 할당받은게 뭐가 있는지 조사 후 추가
 	destroy(p); // page vm_type 별로 destroy 함수 호출
 	free(p);

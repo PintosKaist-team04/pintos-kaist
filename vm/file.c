@@ -35,6 +35,7 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	page->operations = &file_ops;
 
 	struct file_page *file_page = &page->file;
+	file_page->aux = &page->uninit.aux;
 }
 
 /* 파일에서 내용을 읽어 페이지를 스왑 인합니다. */
@@ -56,6 +57,7 @@ file_backed_swap_out (struct page *page) {
 static void
 file_backed_destroy (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
+	free(file_page->aux);
 }
 
 /* mmap을 실행하세요 */
@@ -84,7 +86,8 @@ do_mmap (void *addr, size_t length, int writable,
 		aux->file = file;
 		aux->ofs = ofs;
 		aux->read_bytes = page_read_bytes;
-		aux->zero_bytes = page_zero_bytes; 
+		aux->zero_bytes = page_zero_bytes;
+		aux->length = length; //VM_FILE 전체 페이지 확인용
 		
 		if (!vm_alloc_page_with_initializer(VM_FILE, upage, writable, lazy_load_segment, aux)) {
 			free(aux);
@@ -105,6 +108,12 @@ do_mmap (void *addr, size_t length, int writable,
 /* Do the munmap */
 void
 do_munmap (void *addr) {
+	//addr 나를 호출한 syscall mummap 에서 인자로 받음.
+	//spt 찾기!
+	//length 계산
+	//수정 사항 반영 -> file_backed_destroy에서 해줘야 함 destroy 호출
+	//file_backed_destroy의 호출자는 이를 처리해야 합니다. -> 페이지 삭제
+	//
 
 	
 }

@@ -384,7 +384,7 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
 
     // int a = (uint64_t)addr & (PGSIZE - 1); // @todo 삭제할것 for testing
     // 길이가 있는지
-    if (length == 0) {
+    if (length <= 0) {
 		return NULL;
 	}
 
