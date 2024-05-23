@@ -20,20 +20,25 @@
 void syscall_entry(void);
 void syscall_handler(struct intr_frame *f UNUSED);
 void check_address(void *uaddr);
+
 void halt(void);
-bool create(const char *file, unsigned initial_size);
-bool remove(const char *file);
+void exit(int status);
 tid_t fork(const char *thread_name);
-void seek(int fd, unsigned position);
-unsigned tell(int fd);
-int filesize(int fd);
-void close(int fd);
-int read(int fd, void *buffer, unsigned size);
-int write(int fd, const void *buffer, unsigned length);
 int exec(const char *file);
 int wait(pid_t);
+bool create(const char *file, unsigned initial_size);
+bool remove(const char *file);
 int open(const char *file);
-void exit(int status);
+int filesize(int fd);
+int read(int fd, void *buffer, unsigned size);
+int write(int fd, const void *buffer, unsigned length);
+void seek(int fd, unsigned position);
+unsigned tell(int fd);
+void close(int fd);
+
+void *mmap (void *addr, size_t length, int writable, int fd, off_t offset);
+void munmap (void *addr);
+
 
 /* 시스템 호출.
  *
@@ -171,6 +176,14 @@ void syscall_handler(struct intr_frame *f UNUSED) {
             close(f->R.rdi);
             break;
 
+        case SYS_MMAP:
+            f->R.rax = mmap(f->R.rdi, f->R.rsi, f->R.rdx, f->R.r10, f->R.r8);
+            break;
+        
+        case SYS_MUNMAP:
+            munmap(f->R.rdi);
+            break;
+
         default:
             exit(-1);
             break;
@@ -187,14 +200,21 @@ void check_address(void *uaddr) {
     }
 }
 
+void halt(void) {
+    power_off();
+}
+
 void exit(int status) {
     thread_current()->exit_status = status;
     printf("%s: exit(%d)\n", thread_name(), status);
     thread_exit();
 }
 
-void halt(void) {
-    power_off();
+tid_t fork(const char *thread_name) {
+    check_address(thread_name);
+    struct intr_frame *if_ = pg_round_up(&thread_name) - sizeof(struct intr_frame);
+    
+    return process_fork(thread_name, if_);
 }
 
 int exec(const char *file) {
@@ -216,6 +236,10 @@ int exec(const char *file) {
     // 스레드의 이름을 변경하지 않고 바로 실행한다.
     if (process_exec(file_copy) == -1)
         exit(-1);  // 실패 시 status -1로 종료한다.
+}
+
+int wait(pid_t) {
+    return process_wait(pid_t);
 }
 
 bool create(const char *file, unsigned initial_size) {
@@ -248,41 +272,6 @@ int open(const char *file) {
 
     lock_release(&filesys_lock);
     return fd;
-}
-
-int wait(pid_t) {
-    return process_wait(pid_t);
-}
-
-tid_t fork(const char *thread_name) {
-    check_address(thread_name);
-    struct intr_frame *if_ = pg_round_up(&thread_name) - sizeof(struct intr_frame);
-    
-    return process_fork(thread_name, if_);
-}
-
-void seek(int fd, unsigned position) {
-    struct file *file = process_get_file(fd);
-    if (file == NULL)
-        return;
-
-    file_seek(file, position);
-}
-
-unsigned tell(int fd) {
-    struct file *file = process_get_file(fd);
-    if (file == NULL)
-        return;
-
-    return file_tell(file);
-}
-
-void close(int fd) {
-    struct file *file = process_get_file(fd);
-    if (file == NULL)
-        return;
-    file_close(file);
-    process_close_file(fd);
 }
 
 int filesize(int fd) {
@@ -340,4 +329,65 @@ int write(int fd, const void *buffer, unsigned length) {
         lock_release(&filesys_lock);
     }
     return bytes_write;
+}
+
+void seek(int fd, unsigned position) {
+    struct file *file = process_get_file(fd);
+    if (file == NULL)
+        return;
+
+    file_seek(file, position);
+}
+
+unsigned tell(int fd) {
+    struct file *file = process_get_file(fd);
+    if (file == NULL)
+        return;
+
+    return file_tell(file);
+}
+
+void close(int fd) {
+    struct file *file = process_get_file(fd);
+    if (file == NULL)
+        return;
+    file_close(file);
+    process_close_file(fd);
+}
+
+void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
+    /* 실패 case 
+     * 1. addr이 0 인 경우 null인 경우는 호출까지만(?)
+     * 2. addr+length가 커널 영역을 침범하는 경우 
+     * 3. addr과 offset이 pgsize가 아닌 경우
+     * 4. fd가 없는 경우
+     * 5. length 혹은 file size가 0 인 경우
+     * 6. offset이 파일 크기보다 큰 경우
+     * 7. fd 값이 표준 입출력(0, 1) 인 경우
+     * 8. 기존에 mmap 된 가상 주소인 경우(spt find)*/
+
+    struct supplemental_page_table spt = thread_current()->spt;
+
+    if (!addr) return NULL;
+    if (is_kernel_vaddr(addr + length)) return NULL;
+    if (((uint64_t)addr % PGSIZE != 0 ) || (offset % PGSIZE != 0)) return NULL;
+    
+    struct file *file = process_get_file(fd);
+    if (file == NULL) return NULL;
+
+    int fsize = filesize(fd);
+
+    if (offset > fsize) return NULL;
+        
+    if (fd == 0 || fd == 1) return NULL;
+    if (length == 0 || fsize == 0) return NULL;
+    if (!spt_find_page(&spt, addr)) return NULL;
+
+    file = file_reopen(file); //@todo: Reopen 쓰라길래 일단 억지로.. 씀
+    return do_mmap(addr, length, writable, file, offset);
+}
+
+void munmap (void *addr) {
+    printf("not yet\n");
+    return NULL;
 }
