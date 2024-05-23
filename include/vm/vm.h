@@ -51,6 +51,7 @@ struct aux {
 	off_t ofs;
 	uint32_t read_bytes;
 	uint32_t zero_bytes;
+	size_t length;
 };
 
 /* "페이지"의 표현입니다.
@@ -93,6 +94,7 @@ struct page {
 struct frame {
 	void *kva;
 	struct page *page;
+	struct list_elem elem;
 };
 
 /* 페이지 작업을 위한 함수 테이블입니다.

@@ -2,6 +2,9 @@
 /* file.c: Implementation of memory backed file object (mmaped object). */
 
 #include "vm/vm.h"
+#include "threads/vaddr.h"
+
+#include "userprog/process.h"
 
 static bool file_backed_swap_in (struct page *page, void *kva);
 static bool file_backed_swap_out (struct page *page);
@@ -30,8 +33,11 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	/* 핸들러 설정 */
 	/* Set up the handler */
 	page->operations = &file_ops;
-
+	struct aux *aux = malloc(sizeof(struct aux));
+	memcpy(aux, page->uninit.aux, sizeof(struct aux));
 	struct file_page *file_page = &page->file;
+	file_page->aux = &aux;
+	
 }
 
 /* 파일에서 내용을 읽어 페이지를 스왑 인합니다. */
@@ -53,6 +59,7 @@ file_backed_swap_out (struct page *page) {
 static void
 file_backed_destroy (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
+	//free(file_page->aux); //@todo: 언제 aux 삭제 가능하냐
 }
 
 /* mmap을 실행하세요 */
@@ -60,10 +67,55 @@ file_backed_destroy (struct page *page) {
 void *
 do_mmap (void *addr, size_t length, int writable,
 		struct file *file, off_t offset) {
+
+	void * upage = addr;
+	size_t read_bytes = length;	//@todo: 만약 파일 길이보다 더 길게 요청했다면??
+	size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
+	off_t ofs = offset;
+
+	// ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
+	// ASSERT(pg_ofs(addr) == 0);
+	// ASSERT(offset % PGSIZE == 0);
+
+	while (read_bytes > 0 || zero_bytes > 0) {
+		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+		size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+
+		struct aux *aux = malloc(sizeof(struct aux)); // @todo 잊지말고 free하자!
+		if(aux == NULL)
+			return false;
+		aux->file = file;
+		aux->ofs = ofs;
+		aux->read_bytes = page_read_bytes;
+		aux->zero_bytes = page_zero_bytes;
+		aux->length = length; //VM_FILE 전체 페이지 확인용
+		
+		if (!vm_alloc_page_with_initializer(VM_FILE, upage, writable, lazy_load_segment, aux)) {
+			free(aux);
+			return NULL;
+		}
+
+		read_bytes -= page_read_bytes;
+		zero_bytes -= page_zero_bytes;
+		upage += PGSIZE;
+		ofs += page_read_bytes;
+	}
+	// @todo lock 생각하기
+
+	return addr;
 }
 
 /* munmap을 실행하세요 */
 /* Do the munmap */
 void
 do_munmap (void *addr) {
+	//addr 나를 호출한 syscall mummap 에서 인자로 받음.
+	//spt 찾기!
+	//length 계산
+	//수정 사항 반영 -> file_backed_destroy에서 해줘야 함 destroy 호출
+	//file_backed_destroy의 호출자는 이를 처리해야 합니다. -> 페이지 삭제
+	//
+
+	
 }

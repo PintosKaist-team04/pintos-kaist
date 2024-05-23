@@ -11,6 +11,7 @@
     "vm.h": "c",
     "vaddr.h": "c",
     "anon.h": "c",
-    "file.h": "c"
+    "file.h": "c",
+    "*.inc": "c"
   }
 }

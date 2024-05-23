@@ -192,6 +192,7 @@ void syscall_handler(struct intr_frame *f UNUSED) {
 
 void check_address(void *uaddr) {
     struct thread *cur = thread_current();
+    // @todo
     // if (uaddr == NULL || is_kernel_vaddr(uaddr) || pml4_get_page(cur->pml4, uaddr) == NULL) {
     //     exit(-1);
     // }
@@ -283,8 +284,14 @@ int filesize(int fd) {
 }
 
 int read(int fd, void *buffer, unsigned size) {
+    //@fixme : 버퍼가 쓰기 가능인지 체크하기
     check_address(buffer);
 
+    struct page *bf_page = spt_find_page(&thread_current()->spt, pg_round_down(buffer));
+    if (!bf_page->is_writable) {
+        exit(-1);
+    }
+       
     char *ptr = (char *)buffer;
     int bytes_read = 0;
 
@@ -357,7 +364,7 @@ void close(int fd) {
 
 void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
     /* 실패 case 
-     * 1. addr이 0 인 경우 null인 경우는 호출까지만(?)
+     * 1. addr이 0 인 경우 null인 경우는 호출까지만(?) << 리눅스는 넣을수 있는데를 알아서 찾는데 우리 핀토스는 걍 실패처리
      * 2. addr+length가 커널 영역을 침범하는 경우 
      * 3. addr과 offset이 pgsize가 아닌 경우
      * 4. fd가 없는 경우
@@ -366,24 +373,49 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
      * 7. fd 값이 표준 입출력(0, 1) 인 경우
      * 8. 기존에 mmap 된 가상 주소인 경우(spt find)*/
 
-    struct supplemental_page_table spt = thread_current()->spt;
+    // check_address(addr);
+    // check_address(addr + length);
 
-    if (!addr) return NULL;
-    if (is_kernel_vaddr(addr + length)) return NULL;
-    if (((uint64_t)addr % PGSIZE != 0 ) || (offset % PGSIZE != 0)) return NULL;
+    // 주소 유효성 검사. 커널 영역을 침범했는가? 페이지 단위의 주소인가. @todo: addr + length 고민
+    if (addr == NULL || is_kernel_vaddr(addr) || is_kernel_vaddr(pg_round_up(addr + length)) || pg_ofs(addr)) {
+        return NULL;
+    }
+
+    // int a = (uint64_t)addr & (PGSIZE - 1); // @todo 삭제할것 for testing
+    // 길이가 있는지
+    if ((long)length <= 0) {
+		return NULL;
+	}
+
+
+    // 이미 사용중인 주소였는지/페이지 였는지 (겹치지 않게)
+    if(spt_find_page(&thread_current()->spt, addr)) {
+        return NULL;
+    }
     
+    // 입출력/오류 파일이 아닌지
+    if (fd <= STDIN_FILENO || fd == STDOUT_FILENO) {
+        return NULL;
+    }
+
     struct file *file = process_get_file(fd);
-    if (file == NULL) return NULL;
+    if (file == NULL) {
+        return NULL;
+    }
 
     int fsize = filesize(fd);
 
-    if (offset > fsize) return NULL;
-        
-    if (fd == 0 || fd == 1) return NULL;
-    if (length == 0 || fsize == 0) return NULL;
-    if (!spt_find_page(&spt, addr)) return NULL;
+    if (fsize <= 0 || fsize <= offset) {
+        return NULL;
+    }
+    
+    if (fsize < length) length = fsize;
 
-    file = file_reopen(file); //@todo: Reopen 쓰라길래 일단 억지로.. 씀
+    file = file_reopen(file);
+	if (file == NULL) {
+		return NULL;
+	}
+	
     return do_mmap(addr, length, writable, file, offset);
 }
 

@@ -7,13 +7,19 @@
 
 #include "threads/vaddr.h"
 
+
+/* 프레임 테이블 */
+struct list frame_table;
+
 /* 각 하위 시스템의 초기화 코드를 호출하여 가상 메모리 하위 시스템을 초기화합니다. */
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
 void
 vm_init (void) {
+
 	vm_anon_init ();
 	vm_file_init ();
+	list_init(&frame_table);
 #ifdef EFILESYS  /* For project 4 */
 	pagecache_init ();
 #endif
@@ -61,8 +67,12 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 	ASSERT (VM_TYPE(type) != VM_UNINIT)
 
 	/* vm_type 비트마스크 적용 */
-	enum vm_type check_type = type & VM_ANON;
-	if (!check_type) check_type | VM_FILE;
+	enum vm_type check_type;
+	if ((int)type == 9 || (int)type == 1) {
+		check_type = VM_ANON;
+	} else {
+		check_type = type;
+	}
 
 	struct supplemental_page_table *spt = &thread_current ()->spt;
 	/* upage가 이미 사용 중인지 여부를 확인합니다. */
@@ -71,8 +81,8 @@ vm_alloc_page_with_initializer (enum vm_type type, void *upage, bool writable,
 		/* TODO: 페이지를 생성하고, VM 유형에 따라 초기화기를 가져오고, 
 		 * TODO: 그런 다음 uninit_new를 호출하여 "uninit" 페이지 구조체를 생성합니다. 
 		 * TODO: uninit_new를 호출한 후 필드를 수정해야 합니다.
-		 * TODO: 페이지를 spt에 삽입합니다. */
-		/* TODO: Create the page, fetch the initialier according to the VM type,
+		 * TODO: 페이지를 spt에 삽입합니다. 
+		 * TODO: Create the page, fetch the initialier according to the VM type,
 		 * TODO: and then create "uninit" page struct by calling uninit_new. You
 		 * TODO: should modify the field after calling the uninit_new.
 		 * TODO: Insert the page into the spt. */
@@ -142,6 +152,7 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 
 void
 spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
+	list_remove(&page->frame->elem);
 	vm_dealloc_page (page);
 	return true;
 }
@@ -289,9 +300,10 @@ vm_do_claim_page (struct page *page) {
 	
 	if (!pml4_set_page (thread_current()->pml4, page->va, frame->kva, page->is_writable))
 	{
-		vm_dealloc_page(frame);
+		vm_dealloc_page(frame); //@todo: frame table에 있으면 안 해제해주기
 		return false;
 	}
+	list_push_back(&frame_table, &frame->elem);
 	return swap_in (page, frame->kva);
 }
 
@@ -391,6 +403,11 @@ page_destructor (struct hash_elem *page_elem, void *aux UNUSED){
 	if (page_elem == NULL) return;
 
 	struct page *p = hash_entry(page_elem, struct page, hash_elem);
+	
+	// if (p != NULL){
+	// 	list_remove(&p->frame->elem);
+	// }
+
 	//@todo: 동적으로 할당받은게 뭐가 있는지 조사 후 추가
 	destroy(p); // page vm_type 별로 destroy 함수 호출
 	free(p);

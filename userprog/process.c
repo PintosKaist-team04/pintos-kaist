@@ -513,6 +513,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
 
     /* (프로그램 파일) 실행 파일을 엽니다. */
     /* Open executable file. */
+    lock_acquire(&filesys_lock);
     file = filesys_open(file_name);
     if (file == NULL) {
         printf("load: %s: open failed\n", file_name);
@@ -599,6 +600,7 @@ static bool load(const char *file_name, struct intr_frame *if_) {
     success = true;
 
 done:
+    lock_release(&filesys_lock);
     /* 로드가 성공했든 실패했든 여기에 도착합니다. */
     /* We arrive here whether the load is successful or not. */
     if (!success)
@@ -845,7 +847,7 @@ static bool install_page(void *upage, void *kpage, bool writable) {
  * If you want to implement the function for only project 2, implement it on the
  * upper block. */
 
-static bool lazy_load_segment(struct page *page, void *aux) {
+bool lazy_load_segment(struct page *page, void *aux) {
     /* TODO: 파일에서 세그먼트를 로드합니다. */
     /* TODO: 이 함수는 주소 VA에서 처음 페이지 폴트가 발생할 때 호출됩니다. */
     /* TODO: 호출하는 동안 VA를 사용할 수 있습니다. */
@@ -858,7 +860,7 @@ static bool lazy_load_segment(struct page *page, void *aux) {
 	off_t ofs = aux_meta->ofs;
 	uint32_t read_bytes = aux_meta->read_bytes;
 	uint32_t zero_bytes = aux_meta->zero_bytes;
-    free(aux);  //@todo: swap in/swap out 제대로 구현하기 전까지는 여기서 aux free 해주기!
+    //free(aux);  //@todo: swap in/swap out 제대로 구현하기 전까지는 여기서 aux free 해주기!
 
     ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
 
