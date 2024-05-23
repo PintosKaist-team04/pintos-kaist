@@ -420,6 +420,5 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
 }
 
 void munmap (void *addr) {
-    printf("not yet\n");
     return NULL;
 }
