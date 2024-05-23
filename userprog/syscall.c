@@ -371,8 +371,7 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
      * 5. length 혹은 file size가 0 인 경우
      * 6. offset이 파일 크기보다 큰 경우
      * 7. fd 값이 표준 입출력(0, 1) 인 경우
-     * 8. 기존에 mmap 된 가상 주소인 경우(spt find)
-     */
+     * 8. 기존에 mmap 된 가상 주소인 경우(spt find)*/
 
     // check_address(addr);
     // check_address(addr + length);
@@ -384,7 +383,7 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
 
     // int a = (uint64_t)addr & (PGSIZE - 1); // @todo 삭제할것 for testing
     // 길이가 있는지
-    if (length <= 0) {
+    if ((long)length <= 0) {
 		return NULL;
 	}
 
