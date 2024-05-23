@@ -33,9 +33,11 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	/* 핸들러 설정 */
 	/* Set up the handler */
 	page->operations = &file_ops;
-
+	struct aux *aux = malloc(sizeof(struct aux));
+	memcpy(aux, page->uninit.aux, sizeof(struct aux));
 	struct file_page *file_page = &page->file;
-	file_page->aux = &page->uninit.aux;
+	file_page->aux = &aux;
+	
 }
 
 /* 파일에서 내용을 읽어 페이지를 스왑 인합니다. */
@@ -57,7 +59,7 @@ file_backed_swap_out (struct page *page) {
 static void
 file_backed_destroy (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
-	free(file_page->aux);
+	//free(file_page->aux); //@todo: 언제 aux 삭제 가능하냐
 }
 
 /* mmap을 실행하세요 */
