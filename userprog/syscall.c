@@ -408,7 +408,9 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
 
     if (fsize <= 0 || fsize <= offset) {
         return NULL;
-    } 
+    }
+    
+    if (fsize < length) length = fsize;
 
     file = file_reopen(file);
 	if (file == NULL) {
