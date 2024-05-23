@@ -2,6 +2,9 @@
 /* file.c: Implementation of memory backed file object (mmaped object). */
 
 #include "vm/vm.h"
+#include "threads/vaddr.h"
+
+#include "userprog/process.h"
 
 static bool file_backed_swap_in (struct page *page, void *kva);
 static bool file_backed_swap_out (struct page *page);
@@ -60,10 +63,48 @@ file_backed_destroy (struct page *page) {
 void *
 do_mmap (void *addr, size_t length, int writable,
 		struct file *file, off_t offset) {
+
+	void * upage = addr;
+	size_t read_bytes = length;	//@todo: 만약 파일 길이보다 더 길게 요청했다면??
+	size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
+	off_t ofs = offset;
+
+	// ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
+	// ASSERT(pg_ofs(addr) == 0);
+	// ASSERT(offset % PGSIZE == 0);
+
+	while (read_bytes > 0 || zero_bytes > 0) {
+		size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+		size_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+
+		struct aux *aux = malloc(sizeof(struct aux)); // @todo 잊지말고 free하자!
+		if(aux == NULL)
+			return false;
+		aux->file = file;
+		aux->ofs = ofs;
+		aux->read_bytes = page_read_bytes;
+		aux->zero_bytes = page_zero_bytes; 
+		
+		if (!vm_alloc_page_with_initializer(VM_ANON, upage, writable, lazy_load_segment, aux)) {
+			free(aux);
+			return NULL;
+		}
+
+		read_bytes -= page_read_bytes;
+		zero_bytes -= page_zero_bytes;
+		upage += PGSIZE;
+		ofs += page_read_bytes;
+	}
+	// @todo lock 생각하기
+
+	return addr;
 }
 
 /* munmap을 실행하세요 */
 /* Do the munmap */
 void
 do_munmap (void *addr) {
+
+	
 }
