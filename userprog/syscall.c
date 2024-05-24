@@ -245,14 +245,17 @@ int wait(pid_t) {
 
 bool create(const char *file, unsigned initial_size) {
     check_address(file);
+    lock_acquire(&filesys_lock);
     bool is_success = filesys_create(file, initial_size);
-
+    lock_release(&filesys_lock);
     return is_success;
 }
 
 bool remove(const char *file) {
     check_address(file);
+    lock_acquire(&filesys_lock);
     bool is_success = filesys_remove(file);
+    lock_release(&filesys_lock);
     return is_success;
 }
 
