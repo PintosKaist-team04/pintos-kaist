@@ -404,10 +404,6 @@ page_destructor (struct hash_elem *page_elem, void *aux UNUSED){
 	if (page_elem == NULL) return;
 
 	struct page *p = hash_entry(page_elem, struct page, hash_elem);
-	
-	// if (p != NULL){
-	// 	list_remove(&p->frame->elem);
-	// }
 
 	//@todo: 동적으로 할당받은게 뭐가 있는지 조사 후 추가
 	vm_dealloc_page(p);
