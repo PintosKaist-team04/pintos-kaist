@@ -5,6 +5,8 @@
 #include "threads/vaddr.h"
 
 #include "userprog/process.h"
+#include "threads/mmu.h"
+#include "filesys/filesys.h"
 
 static bool file_backed_swap_in (struct page *page, void *kva);
 static bool file_backed_swap_out (struct page *page);
@@ -64,7 +66,14 @@ file_backed_swap_out (struct page *page) {
 static void
 file_backed_destroy (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
-	//free(file_page->aux); //@todo: 언제 aux 삭제 가능하냐
+
+	if (pml4_is_dirty(thread_current()->pml4, page->va)) {
+		file_write_at(file_page->file, page->va, file_page->page_read_bytes, file_page->ofs);
+		pml4_set_dirty(thread_current()->pml4, page->va, false); // @todo: 어차피 클리어 해줄건데 왜필요함?
+	}
+	// file_close(file_page->file);
+	// free(file_page->aux); //@todo: 언제 aux 삭제 가능하냐
+	pml4_clear_page(thread_current()->pml4, page->va);
 }
 
 /* mmap을 실행하세요 */
