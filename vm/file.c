@@ -43,6 +43,7 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	file_page->ofs = aux->ofs;
 	file_page->page_read_bytes = aux->read_bytes;
 	file_page->page_zero_bytes = aux->zero_bytes;
+	file_page->length = aux->length;
 
 	return true;
 }
@@ -130,12 +131,7 @@ do_mmap (void *addr, size_t length, int writable,
 /* Do the munmap */
 void
 do_munmap (void *addr) {
-	//addr 나를 호출한 syscall mummap 에서 인자로 받음.
-	//spt 찾기!
-	//length 계산
-	//수정 사항 반영 -> file_backed_destroy에서 해줘야 함 destroy 호출
-	//file_backed_destroy의 호출자는 이를 처리해야 합니다. -> 페이지 삭제
-	//
-
-	
+	struct page *page;
+	page = spt_find_page(&thread_current()->spt, addr);
+	spt_remove_page(&thread_current()->spt, page);
 }
