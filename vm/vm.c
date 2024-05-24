@@ -410,6 +410,5 @@ page_destructor (struct hash_elem *page_elem, void *aux UNUSED){
 	// }
 
 	//@todo: 동적으로 할당받은게 뭐가 있는지 조사 후 추가
-	destroy(p); // page vm_type 별로 destroy 함수 호출
-	free(p);
+	vm_dealloc_page(p);
 }
