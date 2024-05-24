@@ -371,7 +371,7 @@ void process_exit(void) {
     palloc_free_multiple(cur->fdt, FDT_PAGES);
     file_close(cur->running);  // 2) 현재 실행 중인 파일도 닫는다.
 
-    process_cleanup(); //@todo: 이거 올려야한대. 왜요????
+    process_cleanup();
 
     // 3) 자식이 종료될 때까지 대기하고 있는 부모에게 signal을 보낸다.
     sema_up(&cur->wait_sema);
@@ -604,8 +604,8 @@ done:
     lock_release(&filesys_lock);
     /* 로드가 성공했든 실패했든 여기에 도착합니다. */
     /* We arrive here whether the load is successful or not. */
-    // if (!success)
-    //     file_close(file);
+    if (!success)
+        file_close(file);
         
     return success;
 }
