@@ -384,6 +384,10 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
         return NULL;
     }
 
+    if (pg_ofs(offset)) {
+        return NULL;
+    }
+
     // int a = (uint64_t)addr & (PGSIZE - 1); // @todo 삭제할것 for testing
     // 길이가 있는지
     if ((long)length <= 0) {
@@ -408,16 +412,11 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
 
     int fsize = filesize(fd);
 
-    if (fsize <= 0 || fsize <= offset || length <= offset) {
+    if (fsize <= 0 || fsize <= offset) {
         return NULL;
     }
     
     if (fsize < length) length = fsize;
-
-    // file = file_reopen(file);
-	// if (file == NULL) {
-	// 	return NULL;
-	// }
 	
     return do_mmap(addr, length, writable, file, offset);
 }
