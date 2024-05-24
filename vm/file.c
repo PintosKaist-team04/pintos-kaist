@@ -74,6 +74,7 @@ file_backed_destroy (struct page *page) {
 	}
 
 	list_remove(&page->frame->elem);
+	free(page->frame);
 
 	pml4_clear_page(thread_current()->pml4, page->va);
 }
