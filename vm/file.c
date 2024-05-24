@@ -33,11 +33,16 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	/* 핸들러 설정 */
 	/* Set up the handler */
 	page->operations = &file_ops;
-	struct aux *aux = malloc(sizeof(struct aux));
-	memcpy(aux, page->uninit.aux, sizeof(struct aux));
+
 	struct file_page *file_page = &page->file;
-	file_page->aux = &aux;
-	
+	struct aux *aux = (struct aux *)page->uninit.aux;
+
+	file_page->file = aux->file;
+	file_page->ofs = aux->ofs;
+	file_page->page_read_bytes = aux->read_bytes;
+	file_page->page_zero_bytes = aux->zero_bytes;
+
+	return true;
 }
 
 /* 파일에서 내용을 읽어 페이지를 스왑 인합니다. */
