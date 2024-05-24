@@ -77,6 +77,7 @@ uninit_initialize (struct page *page, void *kva) {
 static void
 uninit_destroy (struct page *page) {
 	struct uninit_page *uninit UNUSED = &page->uninit;
+	//@todo: pml4 clear page 안함?
 	free(uninit->aux);
 	return;
 }

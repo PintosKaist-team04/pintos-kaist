@@ -414,15 +414,23 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
     
     if (fsize < length) length = fsize;
 
-    file = file_reopen(file);
-	if (file == NULL) {
-		return NULL;
-	}
+    // file = file_reopen(file);
+	// if (file == NULL) {
+	// 	return NULL;
+	// }
 	
     return do_mmap(addr, length, writable, file, offset);
 }
 
 void munmap (void *addr) {
-    printf("not yet\n");
+    /* addr 에 대한 매핑 해제
+        * 동일한 프로세서의 mmap이 호출했던 주소여야함.
+        * 프로세스가 exit 되면 mmap ㅍ매핑 해제하기
+        * 프로세스가 쓴 모든 페이지는 파일에 다시 기록
+        * 기록하지 않은 페이지는 기록 x 
+        * 그리고 나서야 페이지 목록에서 제거 
+    */
+    // struct page *page = spt_find_page(&thread_current()->spt, addr);
+    // spt_remove_page(&thread_current()->spt, page);
     return NULL;
 }
