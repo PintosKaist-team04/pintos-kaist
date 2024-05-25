@@ -68,11 +68,10 @@ static void
 file_backed_destroy (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
 
-	if (pml4_is_dirty(thread_current()->pml4, page->va)) {
+	if (pml4_is_dirty(thread_current()->pml4, page->va) && page->is_writable) {
 		file_write_at(file_page->file, page->va, file_page->page_read_bytes, file_page->ofs);
 		pml4_set_dirty(thread_current()->pml4, page->va, false); // @todo: 어차피 클리어 해줄건데 왜필요함?
 	}
-
 	list_remove(&page->frame->elem);
 	free(page->frame);
 
