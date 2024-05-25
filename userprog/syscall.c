@@ -245,14 +245,17 @@ int wait(pid_t) {
 
 bool create(const char *file, unsigned initial_size) {
     check_address(file);
+    lock_acquire(&filesys_lock);
     bool is_success = filesys_create(file, initial_size);
-
+    lock_release(&filesys_lock);
     return is_success;
 }
 
 bool remove(const char *file) {
     check_address(file);
+    lock_acquire(&filesys_lock);
     bool is_success = filesys_remove(file);
+    lock_release(&filesys_lock);
     return is_success;
 }
 
@@ -381,6 +384,10 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
         return NULL;
     }
 
+    if (pg_ofs(offset)) {
+        return NULL;
+    }
+
     // int a = (uint64_t)addr & (PGSIZE - 1); // @todo 삭제할것 for testing
     // 길이가 있는지
     if ((long)length <= 0) {
@@ -410,16 +417,19 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
     }
     
     if (fsize < length) length = fsize;
-
-    file = file_reopen(file);
-	if (file == NULL) {
-		return NULL;
-	}
 	
     return do_mmap(addr, length, writable, file, offset);
 }
 
 void munmap (void *addr) {
-    printf("not yet\n");
-    return NULL;
+    struct page *page = spt_find_page(&thread_current()->spt, addr);
+    size_t length = page->file.length;
+
+    size_t page_cnt = (length + PGSIZE - 1) / PGSIZE;
+    struct file *file = page->file.file;
+    for (size_t i = 0; i < page_cnt; i++) {
+        do_munmap(addr);
+        addr += PGSIZE;
+    }
+    file_close(file);
 }

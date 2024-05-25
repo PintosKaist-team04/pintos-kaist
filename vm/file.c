@@ -5,6 +5,8 @@
 #include "threads/vaddr.h"
 
 #include "userprog/process.h"
+#include "threads/mmu.h"
+#include "filesys/filesys.h"
 
 static bool file_backed_swap_in (struct page *page, void *kva);
 static bool file_backed_swap_out (struct page *page);
@@ -33,11 +35,17 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	/* 핸들러 설정 */
 	/* Set up the handler */
 	page->operations = &file_ops;
-	struct aux *aux = malloc(sizeof(struct aux));
-	memcpy(aux, page->uninit.aux, sizeof(struct aux));
+
 	struct file_page *file_page = &page->file;
-	file_page->aux = &aux;
-	
+	struct aux *aux = (struct aux *)page->uninit.aux;
+
+	file_page->file = aux->file;
+	file_page->ofs = aux->ofs;
+	file_page->page_read_bytes = aux->read_bytes;
+	file_page->page_zero_bytes = aux->zero_bytes;
+	file_page->length = aux->length;
+
+	return true;
 }
 
 /* 파일에서 내용을 읽어 페이지를 스왑 인합니다. */
@@ -59,7 +67,15 @@ file_backed_swap_out (struct page *page) {
 static void
 file_backed_destroy (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
-	//free(file_page->aux); //@todo: 언제 aux 삭제 가능하냐
+
+	if (pml4_is_dirty(thread_current()->pml4, page->va) && page->is_writable) {
+		file_write_at(file_page->file, page->va, file_page->page_read_bytes, file_page->ofs);
+		pml4_set_dirty(thread_current()->pml4, page->va, false); // @todo: 어차피 클리어 해줄건데 왜필요함?
+	}
+	list_remove(&page->frame->elem);
+	free(page->frame);
+
+	pml4_clear_page(thread_current()->pml4, page->va);
 }
 
 /* mmap을 실행하세요 */
@@ -73,6 +89,11 @@ do_mmap (void *addr, size_t length, int writable,
 	size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
 	off_t ofs = offset;
 
+	file = file_reopen(file);
+	if (file == NULL) {
+		return NULL;
+	}
+	
 	// ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
 	// ASSERT(pg_ofs(addr) == 0);
 	// ASSERT(offset % PGSIZE == 0);
@@ -110,12 +131,7 @@ do_mmap (void *addr, size_t length, int writable,
 /* Do the munmap */
 void
 do_munmap (void *addr) {
-	//addr 나를 호출한 syscall mummap 에서 인자로 받음.
-	//spt 찾기!
-	//length 계산
-	//수정 사항 반영 -> file_backed_destroy에서 해줘야 함 destroy 호출
-	//file_backed_destroy의 호출자는 이를 처리해야 합니다. -> 페이지 삭제
-	//
-
-	
+	struct page *page;
+	page = spt_find_page(&thread_current()->spt, addr);
+	spt_remove_page(&thread_current()->spt, page);
 }

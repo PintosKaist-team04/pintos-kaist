@@ -152,7 +152,8 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 
 void
 spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
-	list_remove(&page->frame->elem);
+	hash_delete(&spt->hash_pages, &page->hash_elem);
+	// list_remove(&page->frame->elem);
 	vm_dealloc_page (page);
 	return true;
 }
@@ -403,12 +404,7 @@ page_destructor (struct hash_elem *page_elem, void *aux UNUSED){
 	if (page_elem == NULL) return;
 
 	struct page *p = hash_entry(page_elem, struct page, hash_elem);
-	
-	// if (p != NULL){
-	// 	list_remove(&p->frame->elem);
-	// }
 
 	//@todo: 동적으로 할당받은게 뭐가 있는지 조사 후 추가
-	destroy(p); // page vm_type 별로 destroy 함수 호출
-	free(p);
+	vm_dealloc_page(p);
 }
