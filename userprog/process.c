@@ -370,7 +370,6 @@ void process_exit(void) {
     palloc_free_multiple(cur->fdt, FDT_PAGES);
     file_close(cur->running);  // 2) 현재 실행 중인 파일도 닫는다.
     
-
     process_cleanup();
 
     // 3) 자식이 종료될 때까지 대기하고 있는 부모에게 signal을 보낸다.
@@ -521,6 +520,9 @@ static bool load(const char *file_name, struct intr_frame *if_) {
         goto done;
     }
 
+    t->running = file;
+    file_deny_write(file);
+
     /* 실행 가능한 헤더를 읽고 확인합니다. */
     /* Read and verify executable header. */
     if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr || memcmp(ehdr.e_ident, "\177ELF\2\1\1", 7) || ehdr.e_type != 2 || ehdr.e_machine != 0x3E  // amd64
@@ -583,8 +585,6 @@ static bool load(const char *file_name, struct intr_frame *if_) {
                     goto done;
                 break;
         }
-    t->running = file;
-    file_deny_write(file);
     }
 
 
