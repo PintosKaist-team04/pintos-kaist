@@ -16,7 +16,6 @@ struct list frame_table;
  * intialize codes. */
 void
 vm_init (void) {
-
 	vm_anon_init ();
 	vm_file_init ();
 	list_init(&frame_table);
@@ -47,8 +46,9 @@ page_get_type (struct page *page) {
 /* 도우미 함수들 */
 /* Helpers */
 static struct frame *vm_get_victim (void);
-static bool vm_do_claim_page (struct page *page);
 static struct frame *vm_evict_frame (void);
+static bool vm_do_claim_page (struct page *page);
+
 
 /* 해시 도우미 함수들 */
 unsigned page_hash (const struct hash_elem *p_, void *aux UNUSED);
@@ -152,9 +152,9 @@ spt_insert_page (struct supplemental_page_table *spt UNUSED,
 
 void
 spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
-	list_remove(&page->frame->elem);
+	hash_delete(&spt->hash_pages, &page->hash_elem);
+	//list_remove(&page->frame->elem);
 	vm_dealloc_page (page);
-	return true;
 }
 
 /* 대체될 구조 프레임을 가져옵니다. */
@@ -162,10 +162,21 @@ spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
 static struct frame *
 vm_get_victim (void) {
 	struct frame *victim = NULL;
-	
-	 /* TODO: 대체 정책은 여러분의 결정에 달려 있습니다. */
-	 /* TODO: The policy for eviction is up to you. */
 
+	victim = list_entry(list_pop_front(&frame_table), struct frame, elem);
+	// struct frame *f;
+	// /* TODO: 대체 정책은 여러분의 결정에 달려 있습니다. */
+	// /* TODO: The policy for eviction is up to you. */
+	
+	// struct list_elem *e;
+	// for (e = list_begin (&frame_table); e != list_end (&frame_table);
+	// e = list_next (e)) {
+	// 	f = list_entry (e, struct frame, elem);
+
+	// 	if (f->page->operations->type != 9) break;
+	// }
+
+	// victim = f;
 	return victim;
 }
 
@@ -176,14 +187,16 @@ vm_get_victim (void) {
 static struct frame *
 vm_evict_frame (void) {
 	struct frame *victim UNUSED = vm_get_victim ();
-	/* TODO: 희생자를 스왑아웃하고 대체된 프레임을 반환합니다. */
-	/* TODO: swap out the victim and return the evicted frame. */
+	/* TODO: 희생자를 스왑아웃하고 대체된 프레임을 반환합니다.
+	 * TODO: swap out the victim and return the evicted frame. */
 
-	return NULL;
+	swap_out(victim->page);
+	return victim;
 }
 
 /* palloc()을 호출하고 프레임을 가져옵니다. 사용 가능한 페이지가 없으면 페이지를 대체하고 반환합니다. 
- * 이 함수는 항상 유효한 주소를 반환합니다.  즉, 사용자 풀 메모리가 가득 찬 경우, 이 함수는 사용 가능한 메모리 공간을 얻기 위해 프레임을 대체합니다. */
+ * 이 함수는 항상 유효한 주소를 반환합니다.  
+ * 즉, 사용자 풀 메모리가 가득 찬 경우, 이 함수는 사용 가능한 메모리 공간을 얻기 위해 프레임을 대체합니다. */
 /* palloc() and get frame. If there is no available page, evict the page
  * and return it. This always return valid address. That is, if the user pool
  * memory is full, this function evicts the frame to get the available memory
@@ -198,11 +211,14 @@ vm_get_frame (void) {
 	// 프레임 구조체 멤버들 초기화
 	frame->kva = palloc_get_page(PAL_USER);
 	if (frame->kva == NULL) {
+		//@todo: 사용자 풀 메모리 가득 참
 		free(frame);
-		PANIC("todo: vm_get_frame");
+		frame = vm_evict_frame();
+		return frame;
+
 	}
 	frame->page = NULL;
-
+	
 	ASSERT (frame != NULL);
 	ASSERT (frame->page == NULL);
 	return frame;
@@ -404,11 +420,7 @@ page_destructor (struct hash_elem *page_elem, void *aux UNUSED){
 
 	struct page *p = hash_entry(page_elem, struct page, hash_elem);
 	
-	// if (p != NULL){
-	// 	list_remove(&p->frame->elem);
-	// }
-
-	//@todo: 동적으로 할당받은게 뭐가 있는지 조사 후 추가
-	destroy(p); // page vm_type 별로 destroy 함수 호출
-	free(p);
+	if (p == NULL) return;
+	
+	vm_dealloc_page(p);
 }

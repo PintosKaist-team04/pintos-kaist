@@ -5,6 +5,8 @@
 #include "threads/vaddr.h"
 
 #include "userprog/process.h"
+#include "threads/mmu.h"
+#include "filesys/filesys.h"
 
 static bool file_backed_swap_in (struct page *page, void *kva);
 static bool file_backed_swap_out (struct page *page);
@@ -51,6 +53,8 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 	file_page->read_bytes = read_bytes;
 	file_page->zero_bytes = zero_bytes;
 	file_page->length = length;
+
+	return true;
 }
 
 /* 파일에서 내용을 읽어 페이지를 스왑 인합니다. */
@@ -58,6 +62,13 @@ file_backed_initializer (struct page *page, enum vm_type type, void *kva) {
 static bool
 file_backed_swap_in (struct page *page, void *kva) {
 	struct file_page *file_page UNUSED = &page->file;
+
+	//lock_acquire(&filesys_lock);
+	file_read_at (file_page->file, kva, file_page->read_bytes, file_page->ofs);
+	//lock_release(&filesys_lock);
+
+	return true;
+	
 }
 
 /* 내용을 파일에 되돌려 쓰면서 페이지를 스왑 아웃합니다. */
@@ -65,6 +76,19 @@ file_backed_swap_in (struct page *page, void *kva) {
 static bool
 file_backed_swap_out (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
+
+	off_t result;
+	if (pml4_is_dirty(thread_current()->pml4, page->va) && page->is_writable == true) {
+		//lock_acquire(&filesys_lock);
+		result = file_write_at(file_page->file, page->va, file_page->read_bytes, file_page->ofs);
+		pml4_set_dirty(thread_current()->pml4, page->va, false);
+		ASSERT(result == file_page->read_bytes);	
+	}
+	//lock_release(&filesys_lock);	
+
+	//list_remove(&page->frame->elem); //free frame은 생략합니다.
+	pml4_clear_page(thread_current()->pml4, page->va);
+	return true;
 }
 
 /* 파일 지원 페이지를 파괴합니다. PAGE는 호출자에 의해 해제될 것입니다. */
@@ -72,7 +96,20 @@ file_backed_swap_out (struct page *page) {
 static void
 file_backed_destroy (struct page *page) {
 	struct file_page *file_page UNUSED = &page->file;
-	//free(file_page->aux); //@todo: 언제 aux 삭제 가능하냐
+
+	off_t result;
+	//lock_acquire(&filesys_lock);
+	if (pml4_is_dirty(thread_current()->pml4, page->va) && page->is_writable){
+		result = file_write_at(file_page->file, page->va, file_page->read_bytes, file_page->ofs);
+		ASSERT(result == file_page->read_bytes);
+	}
+	
+	//lock_release(&filesys_lock);
+	list_remove(&page->frame->elem);
+	free(page->frame);
+
+	pml4_clear_page(thread_current()->pml4, page->va);
+
 }
 
 /* mmap을 실행하세요 */
@@ -123,12 +160,11 @@ do_mmap (void *addr, size_t length, int writable,
 /* Do the munmap */
 void
 do_munmap (void *addr) {
-	//addr 나를 호출한 syscall mummap 에서 인자로 받음.
-	//spt 찾기!
-	//length 계산
-	//수정 사항 반영 -> file_backed_destroy에서 해줘야 함 destroy 호출
-	//file_backed_destroy의 호출자는 이를 처리해야 합니다. -> 페이지 삭제
-	//
+	struct supplemental_page_table *spt = &thread_current()->spt;
 
+	struct page *page = spt_find_page(spt, addr);
+	if (page == NULL) return;
+
+	spt_remove_page(spt, page);
 	
 }

@@ -3,10 +3,15 @@
 
 #include "vm/vm.h"
 #include "devices/disk.h"
+#include "kernel/bitmap.h"
+#include "threads/mmu.h"
 
 /* 아래 줄을 수정하지 마세요 */
 /* DO NOT MODIFY BELOW LINE */
 static struct disk *swap_disk;
+struct bitmap *swap_table;
+struct lock disk_lock;
+struct lock bitmap_lock;
 static bool anon_swap_in (struct page *page, void *kva);
 static bool anon_swap_out (struct page *page);
 static void anon_destroy (struct page *page);
@@ -26,7 +31,9 @@ void
 vm_anon_init (void) {
 	/* 할 일: 스왑 디스크를 설정하세요. */
 	/* TODO: Set up the swap_disk. */
-	swap_disk = NULL;
+	lock_init(&bitmap_lock);
+	swap_disk = disk_get(1, 1);
+	swap_table = bitmap_create(disk_size(swap_disk)/8);
 }
 
 /* 파일 매핑 초기화 */
@@ -38,6 +45,8 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 	page->operations = &anon_ops;
 
 	struct anon_page *anon_page = &page->anon;
+	anon_page->swap_idx = BITMAP_ERROR;
+	return true;
 }
 
 /* 스왑 디스크에서 내용을 읽어 페이지를 스왑 인합니다. */
@@ -45,6 +54,24 @@ anon_initializer (struct page *page, enum vm_type type, void *kva) {
 static bool
 anon_swap_in (struct page *page, void *kva) {
 	struct anon_page *anon_page = &page->anon;
+
+	if (bitmap_test(swap_table, anon_page->swap_idx) == false) {
+		return false;
+	}
+
+	size_t start = anon_page->swap_idx * 8;
+
+	for (int i=0; i<8; i++) {
+		disk_read (swap_disk, start+i, (kva + DISK_SECTOR_SIZE*i));
+	}
+	
+	page->frame->kva = kva;
+
+	lock_acquire(&bitmap_lock);
+	bitmap_set (swap_table, anon_page->swap_idx, false);
+	lock_release(&bitmap_lock);
+	
+	return true;
 }
 
 /* 내용을 스왑 디스크에 쓰면서 페이지를 스왑 아웃합니다. */
@@ -52,6 +79,24 @@ anon_swap_in (struct page *page, void *kva) {
 static bool
 anon_swap_out (struct page *page) {
 	struct anon_page *anon_page = &page->anon;
+
+	lock_acquire(&bitmap_lock);
+	anon_page->swap_idx = bitmap_scan_and_flip(swap_table, 0, 1, 0);
+	lock_release(&bitmap_lock);
+
+	if (anon_page->swap_idx == BITMAP_ERROR) return false;
+
+	size_t start = anon_page->swap_idx * 8;
+
+	for (int i=0; i<8; i++) {
+		disk_write (swap_disk, start+i, (page->va + DISK_SECTOR_SIZE*i));
+	}
+	
+	pml4_clear_page(thread_current()->pml4, page->va);
+
+	page->frame->page = NULL;
+	page->frame = NULL;
+	return true;
 }
 
 /* 익명 페이지를 파괴합니다. PAGE는 호출자에 의해 해제될 것입니다. */
