@@ -245,14 +245,17 @@ int wait(pid_t) {
 
 bool create(const char *file, unsigned initial_size) {
     check_address(file);
+    lock_acquire(&filesys_lock);
     bool is_success = filesys_create(file, initial_size);
-
+    lock_release(&filesys_lock);
     return is_success;
 }
 
 bool remove(const char *file) {
     check_address(file);
+    lock_acquire(&filesys_lock);
     bool is_success = filesys_remove(file);
+    lock_release(&filesys_lock);
     return is_success;
 }
 
@@ -377,9 +380,11 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
     // check_address(addr + length);
 
     // 주소 유효성 검사. 커널 영역을 침범했는가? 페이지 단위의 주소인가. @todo: addr + length 고민
-    if (addr == NULL || is_kernel_vaddr(addr) || is_kernel_vaddr(pg_round_up(addr + length)) || pg_ofs(addr)) {
+    if (addr == NULL || is_kernel_vaddr(addr) || is_kernel_vaddr(pg_round_up(addr + length)) || pg_ofs(addr) || pg_ofs(offset)) {
         return NULL;
     }
+
+
 
     // int a = (uint64_t)addr & (PGSIZE - 1); // @todo 삭제할것 for testing
     // 길이가 있는지
@@ -405,7 +410,7 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
 
     int fsize = filesize(fd);
 
-    if (fsize <= 0 || fsize <= offset || length <= offset) {
+    if (fsize <= 0 || fsize <= offset) {
         return NULL;
     }
     
@@ -420,5 +425,19 @@ void *mmap (void *addr, size_t length, int writable, int fd, off_t offset) {
 }
 
 void munmap (void *addr) {
-    return NULL;
+    struct page *p = spt_find_page(&thread_current()->spt, addr);
+
+    if (p==NULL) return;
+
+    struct file_page *file_page = &p->file;
+    struct file *file = file_page->file;
+    size_t length = file_page->length;
+
+    size_t num_pages = (length + PGSIZE - 1) / PGSIZE;
+    
+    for (size_t i = 0; i < num_pages; i++) {
+        do_munmap(addr);
+        addr += PGSIZE;
+    }
+    file_close(file);
 }
