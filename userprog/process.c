@@ -369,6 +369,7 @@ void process_exit(void) {
     // palloc_free_page(cur->fdt);
     palloc_free_multiple(cur->fdt, FDT_PAGES);
     file_close(cur->running);  // 2) 현재 실행 중인 파일도 닫는다.
+    
 
     process_cleanup();
 
@@ -582,10 +583,10 @@ static bool load(const char *file_name, struct intr_frame *if_) {
                     goto done;
                 break;
         }
-    }
-
     t->running = file;
     file_deny_write(file);
+    }
+
 
     /* Set up stack. */
     if (!setup_stack(if_))
@@ -603,8 +604,8 @@ done:
     lock_release(&filesys_lock);
     /* 로드가 성공했든 실패했든 여기에 도착합니다. */
     /* We arrive here whether the load is successful or not. */
-    if (!success)
-        file_close(file);
+    //if (!success)
+    //    file_close(file);
         
     return success;
 }
