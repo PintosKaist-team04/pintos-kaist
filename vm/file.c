@@ -72,8 +72,14 @@ file_backed_destroy (struct page *page) {
 		file_write_at(file_page->file, page->va, file_page->page_read_bytes, file_page->ofs);
 		pml4_set_dirty(thread_current()->pml4, page->va, false); // @todo: 어차피 클리어 해줄건데 왜필요함?
 	}
-	list_remove(&page->frame->elem);
-	free(page->frame);
+
+	if (page->frame) {
+		list_remove(&page->frame->elem);
+		page->frame->page = NULL;
+		page->frame = NULL;
+		free(page->frame);
+	}
+
 
 	pml4_clear_page(thread_current()->pml4, page->va);
 }
