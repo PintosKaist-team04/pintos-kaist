@@ -6,6 +6,7 @@
 #include "vm/inspect.h"
 
 #include "threads/vaddr.h"
+#include "threads/mmu.h"
 
 
 /* 프레임 테이블 */
@@ -155,7 +156,6 @@ spt_remove_page (struct supplemental_page_table *spt, struct page *page) {
 	hash_delete(&spt->hash_pages, &page->hash_elem);
 	// list_remove(&page->frame->elem);
 	vm_dealloc_page (page);
-	return true;
 }
 
 /* 대체될 구조 프레임을 가져옵니다. */
@@ -164,9 +164,9 @@ static struct frame *
 vm_get_victim (void) {
 	struct frame *victim = NULL;
 	
-	 /* TODO: 대체 정책은 여러분의 결정에 달려 있습니다. */
-	 /* TODO: The policy for eviction is up to you. */
-
+	/* TODO: 대체 정책은 여러분의 결정에 달려 있습니다. */
+	/* TODO: The policy for eviction is up to you. */
+	victim = list_entry(list_pop_front(&frame_table), struct frame, elem);
 	return victim;
 }
 
@@ -179,8 +179,9 @@ vm_evict_frame (void) {
 	struct frame *victim UNUSED = vm_get_victim ();
 	/* TODO: 희생자를 스왑아웃하고 대체된 프레임을 반환합니다. */
 	/* TODO: swap out the victim and return the evicted frame. */
-
-	return NULL;
+	swap_out(victim->page);
+	//어차피 victim에 덮어 씌워주면 됨.
+	return victim;
 }
 
 /* palloc()을 호출하고 프레임을 가져옵니다. 사용 가능한 페이지가 없으면 페이지를 대체하고 반환합니다. 
@@ -197,11 +198,14 @@ vm_get_frame (void) {
 	frame = malloc(sizeof(struct frame));
 
 	// 프레임 구조체 멤버들 초기화
-	frame->kva = palloc_get_page(PAL_USER);
+	frame->kva = palloc_get_page(PAL_USER | PAL_ZERO);
 	if (frame->kva == NULL) {
 		free(frame);
-		PANIC("todo: vm_get_frame");
+		frame = vm_evict_frame();
 	}
+
+	// list_push_back(&frame_table, &frame->elem);
+
 	frame->page = NULL;
 
 	ASSERT (frame != NULL);
@@ -240,10 +244,12 @@ vm_try_handle_fault (struct intr_frame *f UNUSED, void *addr UNUSED,
 	}
 
 	if (not_present){
-		if (USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 == addr && addr <= USER_STACK)
-            vm_stack_growth(addr);
-        else if (USER_STACK - (1 << 20) <= rsp && rsp <= addr && addr <= USER_STACK)
-            vm_stack_growth(addr);
+		if (USER_STACK - (1 << 20) <= rsp - 8 && rsp - 8 == addr && addr <= USER_STACK) {
+			vm_stack_growth(addr);
+		}
+		else if (USER_STACK - (1 << 20) <= rsp && rsp <= addr && addr <= USER_STACK) {
+			vm_stack_growth(addr);
+		}
 		
 		page = spt_find_page(spt, addr);
 
@@ -301,7 +307,7 @@ vm_do_claim_page (struct page *page) {
 	
 	if (!pml4_set_page (thread_current()->pml4, page->va, frame->kva, page->is_writable))
 	{
-		vm_dealloc_page(frame); //@todo: frame table에 있으면 안 해제해주기
+		vm_dealloc_page(page); //@todo: frame table에 있으면 안 해제해주기
 		return false;
 	}
 	list_push_back(&frame_table, &frame->elem);
@@ -404,6 +410,11 @@ page_destructor (struct hash_elem *page_elem, void *aux UNUSED){
 	if (page_elem == NULL) return;
 
 	struct page *p = hash_entry(page_elem, struct page, hash_elem);
+
+	if (p == NULL) {
+		// printf("wtf\n");
+		return;
+	}
 
 	//@todo: 동적으로 할당받은게 뭐가 있는지 조사 후 추가
 	vm_dealloc_page(p);
