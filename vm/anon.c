@@ -113,17 +113,19 @@ anon_destroy (struct page *page) {
 	struct anon_page *anon_page = &page->anon;
 	
 	// 스왑 테이블에서 스왑 인덱스 해제
-	if (anon_page->swap_idx != BITMAP_ERROR) {
-		bitmap_reset(swap_table, anon_page->swap_idx);
-	}
+	// if (anon_page->swap_idx != BITMAP_ERROR) {
+	// 	lock_acquire(&bitmap_lock);
+	// 	bitmap_reset(swap_table, anon_page->swap_idx);
+	// 	lock_release(&bitmap_lock);
+	// }
 
-	// 프레임이 존재하면 프레임을 리스트에서 제거하고 해제
-	if (page->frame) {
-		list_remove(&page->frame->elem);
-		page->frame->page = NULL;
-		free(page->frame);
-		page->frame = NULL;
-	}
+	// // 프레임이 존재하면 프레임을 리스트에서 제거하고 해제
+	// if (page->frame) {
+	// 	list_remove(&page->frame->elem);
+	// 	page->frame->page = NULL;
+	// 	free(page->frame);
+	// 	page->frame = NULL;
+	// }
 
-	pml4_clear_page(thread_current()->pml4, page->va);
+	// pml4_clear_page(thread_current()->pml4, page->va);
 }

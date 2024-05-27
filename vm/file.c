@@ -71,9 +71,9 @@ file_backed_swap_out (struct page *page) {
 		pml4_set_dirty(thread_current()->pml4, page->va, false);
 	}
 	// list_remove(&page->frame->elem);
-	// page->frame->page = NULL;
-	// page->frame = NULL;
-	pml4_clear_page(&thread_current()->pml4, page->va);
+	page->frame->page = NULL;
+	page->frame = NULL;
+	pml4_clear_page(thread_current()->pml4, page->va);
 
 	return true;
 }
