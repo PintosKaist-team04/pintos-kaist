@@ -89,7 +89,9 @@ do_mmap (void *addr, size_t length, int writable,
 	size_t zero_bytes = PGSIZE - read_bytes % PGSIZE;
 	off_t ofs = offset;
 
+	lock_acquire(&filesys_lock);
 	file = file_reopen(file);
+	lock_release(&filesys_lock);
 	if (file == NULL) {
 		return NULL;
 	}
